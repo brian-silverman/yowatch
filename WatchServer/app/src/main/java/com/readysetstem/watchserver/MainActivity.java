@@ -4,12 +4,17 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
+    private BluetoothAdapter mBluetoothAdapter;
+    private Context mContext;
+    private boolean mScanning = true;
+
     /**
      * Call back for BLE Scan
      * This call back is called when a BLE device is found near by.
@@ -22,10 +27,14 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    Toast.makeText(getApplicationContext(),
-                            String.valueOf(rssi), Toast.LENGTH_SHORT)
-                            .show();
-
+                    if (mScanning) {
+                        final Intent intent = new Intent(mContext, DeviceControlActivity.class);
+                        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
+                        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+                        mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                        startActivity(intent);
+                        mScanning = false;
+                    }
                 }
             });
         }
@@ -38,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        BluetoothAdapter mBluetoothAdapter;
+        mContext = this;
 
         // Use this check to determine whether BLE is supported on the device.
         if (!this.getPackageManager().hasSystemFeature(
