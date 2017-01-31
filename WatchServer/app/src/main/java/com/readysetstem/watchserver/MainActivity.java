@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
         // Use this check to determine whether BLE is supported on the device.
         if (!this.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_BLUETOOTH_LE)) {
-            Toast.makeText(getApplicationContext(), "device_ble_not_supported",
+            Toast.makeText(getApplicationContext(), R.string.device_ble_not_supported,
                     Toast.LENGTH_SHORT).show();
             finish();
         }
@@ -55,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
         if (mBluetoothAdapter == null) {
             // Device does not support Blue tooth
             Toast.makeText(getApplicationContext(),
-                    "device_bluetooth_not_supported", Toast.LENGTH_SHORT)
+                    R.string.device_bluetooth_not_supported, Toast.LENGTH_SHORT)
                     .show();
             finish();
         }

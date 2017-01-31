@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">WatchServer</string>
+    <string name="device_ble_not_supported">device_ble_not_supported</string>
+    <string name="device_bluetooth_not_supported">device_bluetooth_not_supported</string>
 </resources>
