@@ -314,6 +314,15 @@ public class BluetoothLeService extends Service {
     public List<BluetoothGattService> getSupportedGattServices() {
         if (mBluetoothGatt == null) return null;
 
+        final UUID UUID_S_RGB_LED = UUID.fromString(SampleGattAttributes.S_RGB_LED);
+        final UUID UUID_D_RGB_LED = UUID.fromString(SampleGattAttributes.D_RGB_LED);
+        final UUID UUID_C_RGB_LED = UUID.fromString(SampleGattAttributes.C_RGB_LED);
+
+        BluetoothGattService s = mBluetoothGatt.getService(UUID_S_RGB_LED);
+        BluetoothGattCharacteristic c = s.getCharacteristic(UUID_C_RGB_LED);
+        BluetoothGattDescriptor d = c.getDescriptor(UUID_D_RGB_LED);
+        c.setValue(0x44556677, c.FORMAT_UINT32, 0);
+        mBluetoothGatt.writeCharacteristic(c);
         return mBluetoothGatt.getServices();
     }
 }
