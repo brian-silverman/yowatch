@@ -1,0 +1,13 @@
+/*.bri
+/Backup/
+*.cydsn/CortexM0/
+*.cydsn/Export/
+*.cydsn/Generated_Source/
+*.cydsn/codegentemp/
+*.cydsn/*.cycdx
+*.cydsn/*.cyfit
+*.cydsn/*.cyprj.bri
+*.cydsn/*.rpt
+*.cydsn/*.svd
+*.cydsn/*_timing.html
+
