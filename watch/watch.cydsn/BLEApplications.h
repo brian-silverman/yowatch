@@ -83,14 +83,11 @@
 * Extern variables
 *****************************************************************************/
 extern uint8 deviceConnected;
-extern uint8 sendCapSenseSliderNotifications;
-
 
 /*****************************************************************************
 * Public functions
 *****************************************************************************/
 void CustomEventHandler(uint32 event, void * eventParam);
-void UpdateNotificationCCCD(void);
 void UpdateRGBled(void);
 void SendCapSenseNotification(uint8 CapSenseSliderData);
 

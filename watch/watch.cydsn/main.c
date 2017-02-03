@@ -76,6 +76,8 @@ int main()
 	/* This function will initialize the system resources such as BLE and CapSense */
     InitializeSystem();
 	
+    unsigned int i = 0;
+    
     for(;;)
     {
         /*Process event callback to handle BLE events. The events generated and 
@@ -84,19 +86,10 @@ int main()
 		
 		if(TRUE == deviceConnected)
 		{
-            /* When the Client Characteristic Configuration descriptor (CCCD) is
-             * written by Central device for enabling/disabling notifications, 
-             * then the same descriptor value has to be explicitly updated in 
-             * application so that it reflects the correct value when the 
-             * descriptor is read */
-			UpdateNotificationCCCD();
-			
-			/* Send CapSense Slider data when respective notification is enabled */
-			if(TRUE == sendCapSenseSliderNotifications)
-			{
-				/* Check for CapSense slider swipe and send data accordingly */
-				HandleCapSenseSlider();
-			}
+            i++;
+            
+			/* Check for CapSense slider swipe and send data accordingly */
+			HandleCapSenseSlider();
 		}
     }	
 }
@@ -190,7 +183,6 @@ void HandleCapSenseSlider(void)
 			lastPosition = sliderPosition;
 
 			SendCapSenseNotification((uint8)sliderPosition);
-
 		}	
 	}	
 }

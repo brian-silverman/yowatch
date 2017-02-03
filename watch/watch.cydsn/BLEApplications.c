@@ -44,17 +44,12 @@
 #include <main.h>
 #include <BLEApplications.h>
 
-
 /*****************************************************************************
 * Static variables 
 *****************************************************************************/
 
 /* 'rgbHandle' stores RGB control data parameters */
 CYBLE_GATT_HANDLE_VALUE_PAIR_T		rgbHandle;	
-
-/*This flag is set when the Central device writes to CCC (Client Characteristic 
-* Configuration) of the CapSense slider Characteristic to enable notifications */
-uint8 sendCapSenseSliderNotifications = FALSE;	
 
 /* Array to store the present RGB LED control data. The 4 bytes 
 * of the array represents {R, G, B, Intensity} */
@@ -64,11 +59,6 @@ uint8 RGBledData[RGB_CHAR_DATA_LEN];
 * device has been connected. This is updated in BLE event callback 
 * function*/
 uint8 deviceConnected = FALSE;
-
-/* This flag is used to let application update the CCCD value for correct read 
-* operation by connected Central device */
-uint8 updateNotificationCCCAttribute = FALSE;
-
 
 
 /*******************************************************************************
@@ -115,14 +105,7 @@ void CustomEventHandler(uint32 event, void * eventParam)
 			/* Update deviceConnected flag*/
 			deviceConnected = FALSE;
 			
-			/* Reset CapSense notification flag to prevent further notifications
-			 * being sent to Central device after next connection. */
-			sendCapSenseSliderNotifications = FALSE;
-			
-			/* Reset the CCCD value to disable notifications */
-			updateNotificationCCCAttribute = TRUE;
-			
-			/* Reset the color coordinates */
+            /* Reset the color coordinates */
 			RGBledData[RED_INDEX] = ZERO;
             RGBledData[GREEN_INDEX] = ZERO;
             RGBledData[BLUE_INDEX] = ZERO;
@@ -166,20 +149,6 @@ void CustomEventHandler(uint32 event, void * eventParam)
             }
 
             
-            /* This condition checks whether the CCCD descriptor for CapSense
-             * slider characteristic has been written to. This tells us whether
-             * the notifications for CapSense slider have been enabled/disabled.
-             */
-            if(wrReqParam->handleValPair.attrHandle == cyBle_customs[CAPSENSE_SERVICE_INDEX].\
-				customServiceInfo[CAPSENSE_SLIDER_CHAR_INDEX].customServiceCharDescriptors[CAPSENSE_SLIDER_CCC_INDEX])
-            {
-                sendCapSenseSliderNotifications = wrReqParam->handleValPair.value.val[CCC_DATA_INDEX];
-				
-				/* Set flag to allow CCCD to be updated for next read operation */
-				updateNotificationCCCAttribute = TRUE;
-            }
-
-			
 			/* ADD_CODE to send the response to the write request received. */
 			CyBle_GattsWriteRsp(cyBle_connHandle);
 			
@@ -262,52 +231,6 @@ void UpdateRGBled(void)
 	
 	/* Send updated RGB control handle as attribute for read by central device */
 	CyBle_GattsWriteAttributeValue(&rgbHandle, FALSE, &cyBle_connHandle, FALSE);  
-}
-
-
-/*******************************************************************************
-* Function Name: UpdateNotificationCCCD
-********************************************************************************
-* Summary:
-* Update the data handle for notification status and report it to BLE 
-* component so that it can be read by Central device.
-*
-* Parameters:
-*  void
-*
-* Return:
-*  void
-*
-*******************************************************************************/
-void UpdateNotificationCCCD(void)
-{
-	/* Local variable to store the current CCCD value */
-	uint8 CapSenseCCCDvalue[2];
-	
-	/* Handle value to update the CCCD */
-	CYBLE_GATT_HANDLE_VALUE_PAIR_T CapSenseNotificationCCCDhandle;
-	
-	/* Update notification attribute only when there has been change */
-	if(updateNotificationCCCAttribute)
-	{
-		updateNotificationCCCAttribute = FALSE;
-	
-		/* Write the present CapSense notification status to the local variable */
-		CapSenseCCCDvalue[0] = sendCapSenseSliderNotifications;
-		CapSenseCCCDvalue[1] = 0x00;
-		
-		/* Update CCCD handle with notification status data*/
-		CapSenseNotificationCCCDhandle.attrHandle = CAPSENSE_CCC_HANDLE;
-		CapSenseNotificationCCCDhandle.value.val = CapSenseCCCDvalue;
-		CapSenseNotificationCCCDhandle.value.len = CCC_DATA_LEN;
-		
-		/* Report data to BLE component for sending data when read by Central device */
-		CyBle_GattsWriteAttributeValue(&CapSenseNotificationCCCDhandle, ZERO, &cyBle_connHandle, CYBLE_GATT_DB_LOCALLY_INITIATED);
-		
-		/* Register the updated attribute write value to BLE component once before
-		* updating the next CCCD attribute value */
-		CyBle_ProcessEvents();
-	}	
 }
 
 
