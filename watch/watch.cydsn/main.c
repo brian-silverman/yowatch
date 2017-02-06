@@ -52,6 +52,7 @@
 static void InitializeSystem(void);
 static void HandleCapSenseSlider(void);
 
+uint8 buffer[100];
 
 /*****************************************************************************
 * Public functions
@@ -76,7 +77,8 @@ int main()
 	/* This function will initialize the system resources such as BLE and CapSense */
     InitializeSystem();
 	
-    unsigned int i = 0;
+    unsigned int i = 1;
+    char c = 'A';
     
     for(;;)
     {
@@ -86,11 +88,33 @@ int main()
 		
 		if(TRUE == deviceConnected)
 		{
-            i++;
-            
+
+            if (i%1000==0) {
+
+                if(CyBle_GattGetBusStatus() == CYBLE_STACK_STATE_FREE) {
+                    int j;
+                    for (j = 0; j < 10; j++) {
+                        buffer[j] = c + j;
+                    }
+                    c++;
+                    if (c > 'Z') c = 'A';
+                    
+	                /* 'CapSensenotificationHandle' stores CapSense notification data parameters */
+                	CYBLE_GATTS_HANDLE_VALUE_NTF_T		CapSensenotificationHandle;	
+	
+	                /* Update notification handle with CapSense slider data*/
+	                CapSensenotificationHandle.attrHandle = CYBLE_SMARTWATCH_SERVICE_VOICE_DATA_CHAR_HANDLE;				
+	                CapSensenotificationHandle.value.val = buffer;
+	                CapSensenotificationHandle.value.len = 10;
+	
+	                /* Send notifications. */
+	                CyBle_GattsNotification(cyBle_connHandle, &CapSensenotificationHandle);
+                }
+            }
 			/* Check for CapSense slider swipe and send data accordingly */
-			HandleCapSenseSlider();
+			//HandleCapSenseSlider();
 		}
+        i++;
     }	
 }
 
