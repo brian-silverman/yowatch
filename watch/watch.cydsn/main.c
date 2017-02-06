@@ -52,7 +52,7 @@
 static void InitializeSystem(void);
 static void HandleCapSenseSlider(void);
 
-uint8 buffer[100];
+uint8 buffer[MAX_MTU_SIZE];
 
 /*****************************************************************************
 * Public functions
@@ -78,7 +78,8 @@ int main()
     InitializeSystem();
 	
     unsigned int i = 1;
-    char c = 'A';
+    uint16 j = 0;
+    int k;
     
     for(;;)
     {
@@ -91,24 +92,20 @@ int main()
 
             if (i%1000==0) {
 
-                if(CyBle_GattGetBusStatus() == CYBLE_STACK_STATE_FREE) {
-                    int j;
-                    for (j = 0; j < 10; j++) {
-                        buffer[j] = c + j;
+                if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+                    for (k = 0; k < 256; k++) {
+                        ((uint16 *) buffer)[k] = j++;
                     }
-                    c++;
-                    if (c > 'Z') c = 'A';
                     
-	                /* 'CapSensenotificationHandle' stores CapSense notification data parameters */
-                	CYBLE_GATTS_HANDLE_VALUE_NTF_T		CapSensenotificationHandle;	
+                	CYBLE_GATTS_HANDLE_VALUE_NTF_T		handle;	
 	
 	                /* Update notification handle with CapSense slider data*/
-	                CapSensenotificationHandle.attrHandle = CYBLE_SMARTWATCH_SERVICE_VOICE_DATA_CHAR_HANDLE;				
-	                CapSensenotificationHandle.value.val = buffer;
-	                CapSensenotificationHandle.value.len = 10;
+	                handle.attrHandle = CYBLE_SMARTWATCH_SERVICE_VOICE_DATA_CHAR_HANDLE;				
+	                handle.value.val = buffer;
+	                handle.value.len = 509;
 	
 	                /* Send notifications. */
-	                CyBle_GattsNotification(cyBle_connHandle, &CapSensenotificationHandle);
+	                CyBle_GattsNotification(cyBle_connHandle, &handle);
                 }
             }
 			/* Check for CapSense slider swipe and send data accordingly */

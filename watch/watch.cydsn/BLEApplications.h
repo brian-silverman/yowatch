@@ -77,6 +77,9 @@
 #define LED_CONN_ON_PERIOD				(145000)
 
 #define MTU_XCHANGE_DATA_LEN			(0x0020)
+#define MAX_MTU_SIZE                    (512)
+#define DEFAULT_MTU_SIZE                (CYBLE_GATT_MTU)
+
 
 
 /*****************************************************************************

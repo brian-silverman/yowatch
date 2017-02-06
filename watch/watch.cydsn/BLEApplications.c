@@ -60,6 +60,8 @@ uint8 RGBledData[RGB_CHAR_DATA_LEN];
 * function*/
 uint8 deviceConnected = FALSE;
 
+uint16 negotiatedMtu = DEFAULT_MTU_SIZE;
+
 
 /*******************************************************************************
 * Function Name: CustomEventHandler
@@ -78,12 +80,14 @@ uint8 deviceConnected = FALSE;
 void CustomEventHandler(uint32 event, void * eventParam)
 {
 	CYBLE_GATTS_WRITE_REQ_PARAM_T *wrReqParam;
+    uint16 requestedMtu;
    
     switch(event)
     {
         case CYBLE_EVT_STACK_ON:
         case CYBLE_EVT_GAP_DEVICE_DISCONNECTED:
 			/* Start Advertisement and enter Discoverable mode*/
+            negotiatedMtu = DEFAULT_MTU_SIZE;
 			CyBle_GappStartAdvertisement(CYBLE_ADVERTISING_FAST);
 			break;
 			
@@ -153,6 +157,16 @@ void CustomEventHandler(uint32 event, void * eventParam)
 			CyBle_GattsWriteRsp(cyBle_connHandle);
 			
 			break;
+
+        /* GATT MTU exchange request - Update the negotiated MTU value */
+        case CYBLE_EVT_GATTS_XCNHG_MTU_REQ:
+            //requestedMtu = ((CYBLE_GATT_XCHG_MTU_PARAM_T *)eventParam)->mtu;
+            //negotiatedMtu = requestedMtu <= MAX_MTU_SIZE ? requestedMtu : DEFAULT_MTU_SIZE;
+            negotiatedMtu = (((CYBLE_GATT_XCHG_MTU_PARAM_T *)eventParam)->mtu < CYBLE_GATT_MTU) ?
+                            ((CYBLE_GATT_XCHG_MTU_PARAM_T *)eventParam)->mtu : CYBLE_GATT_MTU;
+
+            break;
+            
 
         default:
 
