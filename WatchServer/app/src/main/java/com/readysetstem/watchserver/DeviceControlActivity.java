@@ -119,6 +119,7 @@ public class DeviceControlActivity extends AppCompatActivity {
                                 SampleGattAttributes.CHARACTERISTIC_VOICE_DATA),
                         true);
                 ((TextView) findViewById(R.id.rx_packets)).setText("test");
+                mBluetoothLeService.exchangeGattMtu(512);
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));

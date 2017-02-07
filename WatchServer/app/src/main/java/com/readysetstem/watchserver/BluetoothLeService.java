@@ -304,4 +304,14 @@ public class BluetoothLeService extends Service {
 
         return mBluetoothGatt.getServices();
     }
+
+    public void exchangeGattMtu(int mtu) {
+        int retry = 5;
+        boolean status = false;
+        while (!status && retry > 0) {
+            status = mBluetoothGatt.requestMtu(mtu);
+            retry--;
+        }
+    }
+
 }
