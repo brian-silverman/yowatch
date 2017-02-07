@@ -28,6 +28,8 @@ public class SampleGattAttributes {
     public static String S_RGB_LED = "0000CBBB-0000-1000-8000-00805F9B34FB";
     public static String C_RGB_LED = "0000CBB1-0000-1000-8000-00805F9B34FB";
     public static String D_RGB_LED = "00002901-0000-1000-8000-00805F9B34FB";
+    public static String SERVICE_SMARTWATCH = "C3113C46-D632-4380-9454-BFAB0F8E2871";
+    public static String CHARACTERISTIC_VOICE_DATA = "93335079-B3B0-4ACD-97F7-F3A0DC528CFF";
 
     static {
         // Sample Services.

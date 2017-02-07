@@ -102,7 +102,7 @@ int main()
 	                /* Update notification handle with CapSense slider data*/
 	                handle.attrHandle = CYBLE_SMARTWATCH_SERVICE_VOICE_DATA_CHAR_HANDLE;				
 	                handle.value.val = buffer;
-	                handle.value.len = 509;
+	                handle.value.len = 10;
 	
 	                /* Send notifications. */
 	                CyBle_GattsNotification(cyBle_connHandle, &handle);
