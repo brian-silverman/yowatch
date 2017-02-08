@@ -56,6 +56,10 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     private TextView mConnectionState;
     private TextView mDataField;
+    private TextView mPacketsField;
+    private TextView mBytesField;
+    private TextView mErrorsField;
+    private int mPackets = 0;
     private String mDeviceName;
     private String mDeviceAddress;
     private ExpandableListView mGattServicesList;
@@ -118,11 +122,12 @@ public class DeviceControlActivity extends AppCompatActivity {
                                 SampleGattAttributes.SERVICE_SMARTWATCH,
                                 SampleGattAttributes.CHARACTERISTIC_VOICE_DATA),
                         true);
-                ((TextView) findViewById(R.id.rx_packets)).setText("test");
-                mBluetoothLeService.exchangeGattMtu(512);
+                mBluetoothLeService.exchangeGattMtu(100);
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+                //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
+                mPacketsField.setText(String.format("%4d", mPackets));
+                mPackets++;
             }
         }
     };
@@ -143,10 +148,11 @@ public class DeviceControlActivity extends AppCompatActivity {
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
-        //mGattServicesList = (ExpandableListView) findViewById(R.id.gatt_services_list);
-        //mGattServicesList.setOnChildClickListener(servicesListClickListner);
         mConnectionState = (TextView) findViewById(R.id.connection_state);
         mDataField = (TextView) findViewById(R.id.data_value);
+        mPacketsField = (TextView) findViewById(R.id.rx_packets);
+        mBytesField = (TextView) findViewById(R.id.rx_bytes);
+        mErrorsField = (TextView) findViewById(R.id.errors);
 
         getSupportActionBar().setTitle(mDeviceName);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);

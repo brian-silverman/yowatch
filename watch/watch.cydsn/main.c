@@ -80,7 +80,11 @@ int main()
     unsigned int i = 1;
     uint16 j = 0;
     int k;
+    uint32 n = 0;
     
+                    for (k = 0; k < 256; k++) {
+                        ((uint16 *) buffer)[k] = j++;
+                    }
     for(;;)
     {
         /*Process event callback to handle BLE events. The events generated and 
@@ -90,12 +94,10 @@ int main()
 		if(TRUE == deviceConnected)
 		{
 
-            if (i%1000==0) {
-
                 if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                    for (k = 0; k < 256; k++) {
-                        ((uint16 *) buffer)[k] = j++;
-                    }
+                    ((uint32 *) buffer)[0] = n++;
+                    ((uint32 *) buffer)[1] = 1;
+                    ((uint32 *) buffer)[2] = 0x11223344;
                     
                 	CYBLE_GATTS_HANDLE_VALUE_NTF_T		handle;	
 	
@@ -107,8 +109,8 @@ int main()
 	                /* Send notifications. */
 	                CyBle_GattsNotification(cyBle_connHandle, &handle);
                 }
-            }
-			/* Check for CapSense slider swipe and send data accordingly */
+
+                /* Check for CapSense slider swipe and send data accordingly */
 			//HandleCapSenseSlider();
 		}
         i++;

@@ -49,6 +49,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         mContext = this;
 
+        String x = DeviceControlActivity.EXTRAS_DEVICE_NAME;
+
         // Use this check to determine whether BLE is supported on the device.
         if (!this.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_BLUETOOTH_LE)) {
