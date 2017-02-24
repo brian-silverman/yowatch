@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/WatchServer.iml" filepath="$PROJECT_DIR$/WatchServer.iml" />
+      <module fileurl="file://$PROJECT_DIR$/YoPhone.iml" filepath="$PROJECT_DIR$/YoPhone.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>

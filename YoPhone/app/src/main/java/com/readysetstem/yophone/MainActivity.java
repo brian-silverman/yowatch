@@ -1,4 +1,4 @@
-package com.readysetstem.watchserver;
+package com.readysetstem.yophone;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;

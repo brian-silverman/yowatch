@@ -4,7 +4,7 @@ android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
     defaultConfig {
-        applicationId "com.readysetstem.watchserver"
+        applicationId "com.readysetstem.yophone"
         minSdkVersion 19
         targetSdkVersion 19
         versionCode 1

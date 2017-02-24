@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.readysetstem.watchserver;
+package com.readysetstem.yophone;
 
 import java.util.HashMap;
 

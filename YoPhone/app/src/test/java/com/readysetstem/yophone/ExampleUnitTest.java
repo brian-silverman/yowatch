@@ -1,4 +1,4 @@
-package com.readysetstem.watchserver;
+package com.readysetstem.yophone;
 
 import org.junit.Test;
 
