@@ -46,7 +46,7 @@ public class ConnectActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.connect_activity);
         mContext = this;
 
         // Use this check to determine whether BLE is supported on the device.
