@@ -122,7 +122,7 @@ public class DeviceControlActivity extends AppCompatActivity {
                                 SampleGattAttributes.SERVICE_SMARTWATCH,
                                 SampleGattAttributes.CHARACTERISTIC_VOICE_DATA),
                         true);
-                mBluetoothLeService.exchangeGattMtu(100);
+                mBluetoothLeService.exchangeGattMtu(512);
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
                 //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
