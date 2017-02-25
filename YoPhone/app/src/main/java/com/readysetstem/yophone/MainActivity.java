@@ -100,8 +100,8 @@ public class MainActivity extends AppCompatActivity {
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 mBluetoothLeService.setCharacteristicNotification(
                         mBluetoothLeService.getCharacteristic(
-                                SampleGattAttributes.SERVICE_SMARTWATCH,
-                                SampleGattAttributes.CHARACTERISTIC_VOICE_DATA),
+                                GattAttributes.SERVICE_SMARTWATCH,
+                                GattAttributes.CHARACTERISTIC_VOICE_DATA),
                         false);
                 mConnected = false;
                 updateConnectionState(R.string.disconnected);
@@ -110,13 +110,12 @@ public class MainActivity extends AppCompatActivity {
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 mBluetoothLeService.setCharacteristicNotification(
                         mBluetoothLeService.getCharacteristic(
-                                SampleGattAttributes.SERVICE_SMARTWATCH,
-                                SampleGattAttributes.CHARACTERISTIC_VOICE_DATA),
+                                GattAttributes.SERVICE_SMARTWATCH,
+                                GattAttributes.CHARACTERISTIC_VOICE_DATA),
                         true);
                 mBluetoothLeService.exchangeGattMtu(512);
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                //displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
                 mPacketsField.setText(String.format("%4d", mPackets));
                 mPackets++;
             }
