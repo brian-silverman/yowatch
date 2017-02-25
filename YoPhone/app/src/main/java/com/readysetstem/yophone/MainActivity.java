@@ -47,7 +47,6 @@ public class MainActivity extends AppCompatActivity {
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
 
     private TextView mConnectionState;
-    private TextView mDataField;
     private TextView mPacketsField;
     private TextView mBytesField;
     private TextView mErrorsField;
@@ -125,7 +124,6 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void clearUI() {
-        mDataField.setText(R.string.no_data);
     }
 
     @Override
@@ -143,7 +141,6 @@ public class MainActivity extends AppCompatActivity {
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
         mConnectionState = (TextView) findViewById(R.id.connection_state);
-        mDataField = (TextView) findViewById(R.id.data_value);
         mPacketsField = (TextView) findViewById(R.id.rx_packets);
         mBytesField = (TextView) findViewById(R.id.rx_bytes);
         mErrorsField = (TextView) findViewById(R.id.errors);
@@ -213,12 +210,6 @@ public class MainActivity extends AppCompatActivity {
                 mConnectionState.setText(resourceId);
             }
         });
-    }
-
-    private void displayData(String data) {
-        if (data != null) {
-            mDataField.setText(data);
-        }
     }
 
     private static IntentFilter makeGattUpdateIntentFilter() {

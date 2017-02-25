@@ -276,6 +276,7 @@ public class BluetoothLeService extends Service {
         final UUID UUID_CHARACTERISTIC = UUID.fromString(characteristicUuidString);
 
         BluetoothGattService service = mBluetoothGatt.getService(UUID_SERVICE);
+        // TODO Get service may be null if not connected.
         return service.getCharacteristic(UUID_CHARACTERISTIC);
 
     }
