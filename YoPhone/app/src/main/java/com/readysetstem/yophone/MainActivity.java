@@ -16,6 +16,7 @@
 
 package com.readysetstem.yophone;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -29,8 +30,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ExpandableListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 
@@ -42,6 +46,7 @@ import java.util.ArrayList;
  */
 public class MainActivity extends AppCompatActivity {
     private final static String TAG = MainActivity.class.getSimpleName();
+    private final int REQUEST_CODE_BT_CONNECT = 1;
 
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
@@ -59,9 +64,6 @@ public class MainActivity extends AppCompatActivity {
             new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
-
-    private final String LIST_NAME = "NAME";
-    private final String LIST_UUID = "UUID";
 
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -96,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 mConnected = true;
                 updateConnectionState(R.string.connected);
-                invalidateOptionsMenu();
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 mBluetoothLeService.setCharacteristicNotification(
                         mBluetoothLeService.getCharacteristic(
@@ -105,7 +106,6 @@ public class MainActivity extends AppCompatActivity {
                         false);
                 mConnected = false;
                 updateConnectionState(R.string.disconnected);
-                invalidateOptionsMenu();
                 clearUI();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 mBluetoothLeService.setCharacteristicNotification(
@@ -128,14 +128,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main_status);
+        setContentView(R.layout.main_activity);
 
-        final Intent intent = getIntent();
-        mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
-        mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        mDeviceName = null;
+        mDeviceAddress = null;
+        /*
         if (mDeviceAddress == null) {
             mDeviceAddress = "00:A0:50:CC:78:65";
         }
+         */
 
         // Sets up UI references.
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
@@ -148,6 +149,13 @@ public class MainActivity extends AppCompatActivity {
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+    }
+
+    public void onClickConnectButton(View v)
+    {
+        mBluetoothLeService.disconnect();
+        final Intent intent = new Intent(this, ConnectActivity.class);
+        startActivityForResult(intent, REQUEST_CODE_BT_CONNECT);
     }
 
     @Override
@@ -175,25 +183,18 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.gatt_services, menu);
-        if (mConnected) {
-            menu.findItem(R.id.menu_connect).setVisible(false);
-            menu.findItem(R.id.menu_disconnect).setVisible(true);
-        } else {
-            menu.findItem(R.id.menu_connect).setVisible(true);
-            menu.findItem(R.id.menu_disconnect).setVisible(false);
-        }
+        getMenuInflater().inflate(R.menu.main_menu, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch(item.getItemId()) {
-            case R.id.menu_connect:
-                mBluetoothLeService.connect(mDeviceAddress);
+            case R.id.menu_status:
+                final Intent intent = new Intent(this, ConnectActivity.class);
+                startActivityForResult(intent, 0);
                 return true;
-            case R.id.menu_disconnect:
-                mBluetoothLeService.disconnect();
+            case R.id.menu_debug:
                 return true;
             case android.R.id.home:
                 onBackPressed();
@@ -219,4 +220,20 @@ public class MainActivity extends AppCompatActivity {
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         return intentFilter;
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        // User chose not to enable Bluetooth.
+        Log.d(TAG, "onActivityResult");
+        if (requestCode == REQUEST_CODE_BT_CONNECT && resultCode == Activity.RESULT_OK) {
+            mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
+            mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+            mBluetoothLeService.connect(mDeviceAddress);
+
+        }
+
+        super.onActivityResult(requestCode, resultCode, intent);
+    }
+
+
 }

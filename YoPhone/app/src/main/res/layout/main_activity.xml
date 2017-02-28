@@ -13,11 +13,15 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:orientation="vertical"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+<LinearLayout android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="20dp">
+
 
     <RelativeLayout
         android:layout_width="fill_parent"
@@ -35,11 +39,12 @@
             android:textSize="18sp" />
 
         <Button
-            android:id="@+id/btnAddExpense"
+            android:id="@+id/connect_button"
             android:layout_width="50dp"
             android:layout_height="match_parent"
             android:layout_alignParentRight="true"
-            android:text="..." />
+            android:text="..."
+            android:onClick="onClickConnectButton" />
 
     </RelativeLayout>
     <RelativeLayout
@@ -115,4 +120,7 @@
             />
     </RelativeLayout>
 
+
 </LinearLayout>
+
+</ScrollView>
