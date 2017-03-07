@@ -43,8 +43,8 @@ import java.util.ArrayList;
  * communicates with {@code BluetoothLeService}, which in turn interacts with the
  * Bluetooth LE API.
  */
-public class MainActivity extends AppCompatActivity {
-    private final static String TAG = MainActivity.class.getSimpleName();
+public class DebugActivity extends AppCompatActivity {
+    private final static String TAG = DebugActivity.class.getSimpleName();
     public static final String PREFS_NAME = "com.readysetstem.yophone.prefs";
 
     private final int REQUEST_CODE_BT_CONNECT = 1;
@@ -57,11 +57,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView mTvDeviceName;
     private TextView mTvRxPackets;
     private TextView mTvRxBytes;
-    private TextView mTvWatchState;
-    private TextView mTvPrevState;
-    private TextView mTvTransition;
-    private TextView mTvVoiceCommand;
-    private TextView mTvVoiceResult;
 
     private int mRxPackets = 0;
     private int mRxBytes = 0;
@@ -72,9 +67,16 @@ public class MainActivity extends AppCompatActivity {
 
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
+
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             mBluetoothLeService = ((BluetoothLeService.LocalBinder) service).getService();
+            if (!mBluetoothLeService.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth");
+                finish();
+            }
+            // Automatically connects to the device upon successful start-up initialization.
+            connect(mDeviceAddress);
         }
 
         @Override
@@ -93,8 +95,21 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                updateConnectionState(true);
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+                updateConnectionState(R.string.connection_state_connected);
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                updateConnectionState(R.string.connection_state_disconnected);
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
+                mBluetoothLeService.setCharacteristicNotification(
+                        mBluetoothLeService.getCharacteristic(
+                                GattAttributes.SERVICE_SMARTWATCH,
+                                GattAttributes.CHARACTERISTIC_VOICE_DATA),
+                        true);
+                mBluetoothLeService.exchangeGattMtu(512);
+
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                mTvRxPackets.setText(String.format("%4d", mRxPackets));
+                mRxPackets++;
             }
         }
     };
@@ -102,7 +117,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main_activity);
+        setContentView(R.layout.debug_activity);
 
         Log.d(TAG, "onCreate()");
 
@@ -110,7 +125,6 @@ public class MainActivity extends AppCompatActivity {
         mSettings = getSharedPreferences(PREFS_NAME, 0);
         mDeviceAddress = mSettings.getString(EXTRAS_DEVICE_ADDRESS, null);
         mDeviceName = mSettings.getString(EXTRAS_DEVICE_NAME, null);
-        Log.d(TAG, "Address: " + mDeviceAddress);
 
         // Sets up UI references.
         mTvDeviceAddress = (TextView) findViewById(R.id.device_address);
@@ -118,22 +132,14 @@ public class MainActivity extends AppCompatActivity {
         mTvConnectionState = (TextView) findViewById(R.id.connection_state);
         mTvRxBytes = (TextView) findViewById(R.id.rx_bytes);
         mTvRxPackets = (TextView) findViewById(R.id.rx_packets);
-        mTvWatchState = (TextView) findViewById(R.id.watch_state);
-        mTvPrevState = (TextView) findViewById(R.id.prev_state);
-        mTvTransition = (TextView) findViewById(R.id.transition);
-        mTvVoiceCommand = (TextView) findViewById(R.id.voice_command);
-        mTvVoiceResult = (TextView) findViewById(R.id.voice_result);
 
-        updateConnectionState(false);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+
+        updateConnectionState(R.string.connection_state_disconnected);
 
         getSupportActionBar().setTitle(getString(R.string.app_name));
-
-        Intent intent = new Intent(this, BluetoothLeService.class);
-        intent.putExtra(EXTRAS_DEVICE_NAME, mDeviceName);
-        intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
-        startService(intent);
-        bindService(intent, mServiceConnection, 0);
-
+        Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
     }
 
     @Override
@@ -145,6 +151,11 @@ public class MainActivity extends AppCompatActivity {
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
         registerReceiver(mGattUpdateReceiver, intentFilter);
+        if (mBluetoothLeService != null) {
+            updateConnectionState(mBluetoothLeService.isConnected() ?
+                    R.string.connection_state_connected : R.string.connection_state_disconnected);
+        }
+        connect(mDeviceAddress);
     }
 
     @Override
@@ -162,37 +173,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main_menu, menu);
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        final Intent intent;
-        switch(item.getItemId()) {
-            case R.id.menu_connect:
-                intent = new Intent(this, ConnectActivity.class);
-                startActivityForResult(intent, REQUEST_CODE_BT_CONNECT);
-                return true;
-            case R.id.menu_settings:
-                Toast.makeText(this, "settings", Toast.LENGTH_SHORT).show();
-                return true;
-            case R.id.menu_commands:
-                Toast.makeText(this, "commands", Toast.LENGTH_SHORT).show();
-                return true;
-            case R.id.menu_log:
-                Toast.makeText(this, "log", Toast.LENGTH_SHORT).show();
-                return true;
-            case R.id.menu_debug:
-                intent = new Intent(this, DebugActivity.class);
-                startActivity(intent);
-                return true;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         // DeviceListItem chose not to enable Bluetooth.
         Log.d(TAG, "onActivityResult");
@@ -204,30 +184,55 @@ public class MainActivity extends AppCompatActivity {
             editor.putString(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
             editor.putString(EXTRAS_DEVICE_NAME, mDeviceName);
             editor.commit();
+
+            connect(mDeviceAddress);
         }
 
         super.onActivityResult(requestCode, resultCode, intent);
     }
 
-    private void updateConnectionState(final boolean display) {
+    private void disconnect() {
+        updateConnectionState(R.string.connection_state_disconnecting);
+        updateConnectionState(mBluetoothLeService.isDisconnected() ?
+                R.string.connection_state_disconnected : R.string.connection_state_disconnecting);
+        mBluetoothLeService.disconnect();
+        Log.d(TAG, "Disconnect");
+    }
+
+    private void connect(String deviceAddress) {
+        if (mBluetoothLeService != null && deviceAddress != null) {
+            updateConnectionState(mBluetoothLeService.isConnected() ?
+                    R.string.connection_state_connected : R.string.connection_state_connecting);
+            final boolean connected = mBluetoothLeService.connect(deviceAddress);
+            Log.d(TAG, "Connect request = " + connected);
+            if (! connected) {
+                updateConnectionState(R.string.connection_state_disconnected);
+            }
+        }
+    }
+
+    private void updateConnectionState(final int resourceId) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                boolean d = display;
-                if (mBluetoothLeService == null) {
-                    d = false;
-                }
-                mTvConnectionState.setText(d ? mBluetoothLeService.getConnectionState() : "");
-                mTvDeviceAddress.setText(d ? mBluetoothLeService.getDeviceAddress() : "");
-                mTvDeviceName.setText(d ? mBluetoothLeService.getDeviceName() : "");
-                mTvRxBytes.setText(d ? String.valueOf(mBluetoothLeService.getRxBytes()) : "");
-                mTvRxPackets.setText(d ? String.valueOf(mBluetoothLeService.getRxPackets()) : "");
-                mTvWatchState.setText(d ? mBluetoothLeService.getWatchState() : R.string.nullstr);
-                mTvPrevState.setText(d ? mBluetoothLeService.getPrevState() : R.string.nullstr);
-                mTvTransition.setText(d ? mBluetoothLeService.getTransition() : R.string.nullstr);
-                mTvVoiceCommand.setText(d ? mBluetoothLeService.getVoiceCommand() : "");
-                mTvVoiceResult.setText(d ? mBluetoothLeService.getVoiceResult() : "");
+                boolean display = resourceId == R.string.connection_state_connecting ||
+                        resourceId == R.string.connection_state_connected;
+                mTvConnectionState.setText(resourceId);
+                mTvDeviceAddress.setText(display ? mDeviceAddress : "");
+                mTvDeviceName.setText(display ? mDeviceName : "");
+                mTvRxBytes.setText(display ? String.valueOf(mRxBytes) : "");
+                mTvRxPackets.setText(display ? String.valueOf(mRxPackets) : "");
             }
         });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch(item.getItemId()) {
+            case android.R.id.home:
+                onBackPressed();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }

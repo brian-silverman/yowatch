@@ -53,50 +53,6 @@
                 android:id="@+id/rx_packets" />
         </LinearLayout>
 
-        <View style="@style/horizontal_bar" />
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="Watch State: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/watch_state" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="Prev State: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/prev_state" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="Transition: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/transition" />
-        </LinearLayout>
-
-        <View style="@style/horizontal_bar" />
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="Voice\nCommand:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/voice_command" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="Voice\nResult:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/voice_result" />
-        </LinearLayout>
-
     </LinearLayout>
 
 </ScrollView>
