@@ -1,56 +1,91 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
     <LinearLayout android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="20dp">
+        android:padding="10dp">
 
-        <TextView
-            android:id="@+id/connection_state"
-            android:layout_width="fill_parent"
-            android:layout_height="45dp"
-            android:layout_marginBottom="10dp"
-            android:gravity="center_vertical"
-            android:textSize="28dp"
-            android:text="STATUS..." />
-
-        <View style="@style/horizontal_bar" />
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="@string/label_device_name" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/device_name" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="@string/label_device_address" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/device_address" />
-        </LinearLayout>
-
-        <View style="@style/horizontal_bar" />
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
-                android:text="RX Bytes: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
-                android:id="@+id/rx_bytes" />
-        </LinearLayout>
-
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="RX Packets:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/rx_packets" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="50dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
+            android:orientation="horizontal"
+            >
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/mic_recorder"
+                android:textSize="20sp" />
+
+            <Space
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <ImageView style="@style/filled_height_icon"
+                android:id="@+id/play"
+                app:srcCompat="@drawable/ic_play" />
+
+            <View style="@style/vertical_bar" />
+
+            <ImageView style="@style/filled_height_icon"
+                android:id="@+id/stop"
+                app:srcCompat="@drawable/ic_stop" />
+
+            <View style="@style/vertical_bar" />
+
+            <ImageView style="@style/filled_height_icon"
+                android:id="@+id/record"
+                android:layout_margin="8dp"
+                app:srcCompat="@drawable/ic_record" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="50dp"
+            android:orientation="horizontal"
+            >
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="@string/speedtest"
+                android:textSize="20sp" />
+
+            <Space
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:textSize="20sp" />
+
+            <View style="@style/vertical_bar" />
+
+            <ImageView style="@style/filled_height_icon"
+                android:id="@+id/imageButton"
+                app:srcCompat="@drawable/ic_play" />
+
         </LinearLayout>
 
     </LinearLayout>

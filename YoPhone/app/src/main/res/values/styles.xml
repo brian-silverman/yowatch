@@ -8,26 +8,26 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <style name="main_activiy_linearlayout">
+    <style name="main_activity_linearlayout">
         <item name="android:layout_width">fill_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:orientation">horizontal</item>
         <item name="android:layout_marginBottom">7dp</item>
         <item name="android:layout_marginTop">7dp</item>
     </style>
-    <style name="main_activiy_linearlayout_fieldname">
+    <style name="main_activity_linearlayout_fieldname">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">18sp</item>
     </style>
-    <style name="main_activiy_linearlayout_value">
+    <style name="main_activity_linearlayout_value">
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_alignParentEnd">true</item>
         <item name="android:gravity">right</item>
         <item name="android:textSize">18sp</item>
         <item name="android:layout_width">match_parent</item>
     </style>
-    <style name="main_activiy_linearlayout_space">
+    <style name="main_activity_linearlayout_space">
         <item name="android:layout_width">10dp</item>
         <item name="android:layout_height">match_parent</item>
     </style>
@@ -36,6 +36,20 @@
         <item name="android:layout_height">1dp</item>
         <item name="android:background">@android:color/darker_gray</item>
     </style>
+    <style name="vertical_bar">
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_width">1dp</item>
+        <item name="android:background">@android:color/darker_gray</item>
+    </style>
+    <style name="filled_height_icon">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">fill_parent</item>
+        <item name="android:layout_gravity">center</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:adjustViewBounds">true</item>
+    </style>
+
+
 
 
 </resources>

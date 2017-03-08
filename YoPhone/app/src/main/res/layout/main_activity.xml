@@ -19,81 +19,81 @@
 
         <View style="@style/horizontal_bar" />
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="@string/label_device_name" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/device_name" />
         </LinearLayout>
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="@string/label_device_address" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/device_address" />
         </LinearLayout>
 
         <View style="@style/horizontal_bar" />
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="RX Bytes: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/rx_bytes" />
         </LinearLayout>
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="RX Packets:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/rx_packets" />
         </LinearLayout>
 
         <View style="@style/horizontal_bar" />
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="Watch State: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/watch_state" />
         </LinearLayout>
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="Prev State: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/prev_state" />
         </LinearLayout>
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="Transition: " />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/transition" />
         </LinearLayout>
 
         <View style="@style/horizontal_bar" />
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="Voice\nCommand:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/voice_command" />
         </LinearLayout>
 
-        <LinearLayout style="@style/main_activiy_linearlayout">
-            <TextView style="@style/main_activiy_linearlayout_fieldname"
+        <LinearLayout style="@style/main_activity_linearlayout">
+            <TextView style="@style/main_activity_linearlayout_fieldname"
                 android:text="Voice\nResult:" />
-            <Space style="@style/main_activiy_linearlayout_space" />
-            <TextView style="@style/main_activiy_linearlayout_value"
+            <Space style="@style/main_activity_linearlayout_space" />
+            <TextView style="@style/main_activity_linearlayout_value"
                 android:id="@+id/voice_result" />
         </LinearLayout>
 

@@ -27,7 +27,7 @@
         </activity>
         <activity android:name="com.readysetstem.yophone.ConnectActivity"/>
         <activity android:name="com.readysetstem.yophone.DebugActivity"/>
-        <service android:name="com.readysetstem.yophone.BluetoothLeService" android:enabled="true"/>
+        <service android:name="com.readysetstem.yophone.BleService" android:enabled="true"/>
     </application>
 
 </manifest>

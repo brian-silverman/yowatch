@@ -25,5 +25,9 @@
     <string name="menu_log">Log</string>
     <string name="menu_debug">Debug</string>
     <string name="state_unknown">Unknown</string>
+    <string name="wtf">WTF</string>
+    <string name="debug_title">Debug</string>
+    <string name="mic_recorder">Mic Recorder</string>
+    <string name="speedtest">Speedtest</string>
 
 </resources>

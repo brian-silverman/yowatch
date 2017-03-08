@@ -25,11 +25,9 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
-import android.content.res.Configuration;
+import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
@@ -41,27 +39,27 @@ import java.util.UUID;
  * Service for managing connection and data communication with a GATT server hosted on a
  * given Bluetooth LE device.
  */
-public class BluetoothLeService extends Service {
-    private final static String TAG = BluetoothLeService.class.getSimpleName();
+public class BleService extends Service {
+    private final static String TAG = BleService.class.getSimpleName();
+    public static final String PREFS_NAME = "com.readysetstem.yophone.prefs";
+
+    public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
+    public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
 
     private BluetoothManager mBluetoothManager;
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
-    private int mConnectionState = STATE_DISCONNECTED;
 
     private String mDeviceName;
     private String mDeviceAddress;
 
-    private static final int STATE_DISCONNECTED = 0;
-    private static final int STATE_CONNECTING = 1;
-    private static final int STATE_CONNECTED = 2;
+    private SharedPreferences mSettings;
 
-    private int mRxPackets;
+    private int mRxPackets = 0;
 
     public final static String PKG = "com.readysetstem.yophone";
-    public final static String ACTION_GATT_CONNECTED = PKG + ".ACTION_GATT_CONNECTED";
-    public final static String ACTION_GATT_DISCONNECTED = PKG + ".ACTION_GATT_DISCONNECTED";
+    public final static String ACTION_GATT_CONNECTION_CHANGE = PKG + ".ACTION_GATT_CONNECTION_CHANGE";
     public final static String ACTION_GATT_SERVICES_DISCOVERED =
             PKG + ".ACTION_GATT_SERVICES_DISCOVERED";
     public final static String ACTION_DATA_AVAILABLE = PKG + ".ACTION_DATA_AVAILABLE";
@@ -72,22 +70,13 @@ public class BluetoothLeService extends Service {
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            String intentAction;
-            
+            Log.i(TAG, "Dis/Connected to GATT server.");
+            broadcastUpdate(ACTION_GATT_CONNECTION_CHANGE);
+
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                intentAction = ACTION_GATT_CONNECTED;
-                mConnectionState = STATE_CONNECTED;
-                broadcastUpdate(intentAction);
-                Log.i(TAG, "Connected to GATT server.");
                 // Attempts to discover services after successful connection.
                 Log.i(TAG, "Attempting to start service discovery:" +
                         mBluetoothGatt.discoverServices());
-
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                intentAction = ACTION_GATT_DISCONNECTED;
-                mConnectionState = STATE_DISCONNECTED;
-                Log.i(TAG, "Disconnected from GATT server.");
-                broadcastUpdate(intentAction);
             }
         }
 
@@ -144,36 +133,25 @@ public class BluetoothLeService extends Service {
     }
 
     public class LocalBinder extends Binder {
-        BluetoothLeService getService() {
-            return BluetoothLeService.this;
+        BleService getService() {
+            return BleService.this;
         }
     }
-
     @Override
     public IBinder onBind(Intent intent) {
-        Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
         return mBinder;
     }
-
     @Override
     public boolean onUnbind(Intent intent) {
         return super.onUnbind(intent);
     }
-
     private final IBinder mBinder = new LocalBinder();
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-        if (intent != null) {
-            final String deviceName = intent.getStringExtra(MainActivity.EXTRAS_DEVICE_NAME);
-            if (deviceName != null) mDeviceName = deviceName;
-            final String deviceAddress = intent.getStringExtra(MainActivity.EXTRAS_DEVICE_ADDRESS);
-            if (deviceAddress != null) mDeviceAddress = deviceAddress;
-
-            initialize();
-
-            connect(mDeviceAddress);
+        if (isDisconnected()) {
+            connect();
         }
         return START_STICKY;
     }
@@ -181,75 +159,65 @@ public class BluetoothLeService extends Service {
     @Override
     public void onCreate() {
         Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-        mRxPackets = 0;
-    }
 
-    @Override
-    public void onDestroy() {
-        Log.e(TAG, "onDestory");
-        Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-        close();
-        super.onDestroy();
-    }
+        // Restore preferences
+        mSettings = getSharedPreferences(PREFS_NAME, 0);
+        mDeviceAddress = mSettings.getString(EXTRAS_DEVICE_ADDRESS, null);
+        mDeviceName = mSettings.getString(EXTRAS_DEVICE_NAME, null);
+        Log.d(TAG, "Address: " + mDeviceAddress);
 
-    /**
-     * Initializes a reference to the local Bluetooth adapter.
-     *
-     * @return Return true if the initialization is successful.
-     */
-    public boolean initialize() {
+
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
         if (mBluetoothManager == null) {
             mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (mBluetoothManager == null) {
                 Log.e(TAG, "Unable to initialize BluetoothManager.");
-                return false;
+                return;
             }
         }
 
         mBluetoothAdapter = mBluetoothManager.getAdapter();
         if (mBluetoothAdapter == null) {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
-            return false;
+            return;
         }
+    }
 
-        return true;
+    @Override
+    public void onDestroy() {
+        Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
+        disconnect();
+        super.onDestroy();
     }
 
     /**
      * Connects to the GATT server hosted on the Bluetooth LE device.
-     *
-     * @param address The device address of the destination device.
      *
      * @return Return true if the connection is initiated successfully. The connection result
      *         is reported asynchronously through the
      *         {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
      *         callback.
      */
-    public boolean connect(final String address) {
-        if (mBluetoothAdapter == null || address == null) {
-            Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
+    private boolean connect() {
+        if (mBluetoothAdapter == null || mDeviceAddress == null) {
+            Log.w(TAG, "Bluetooth not initialized or no address specified.");
             return false;
         }
 
         // Previously connected device.  Try to reconnect.
-        if (mBluetoothDeviceAddress != null && address.equals(mBluetoothDeviceAddress)
-                && mBluetoothGatt != null) {
+        if (mBluetoothGatt != null &&
+                mDeviceAddress.equals(mBluetoothGatt.getDevice().getAddress()))
+        {
             Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
-            if (mBluetoothGatt.connect()) {
-                mConnectionState = STATE_CONNECTING;
-                return true;
-            } else {
-                return false;
-            }
+            return mBluetoothGatt.connect();
         }
 
         final BluetoothDevice device;
         try {
-            device = mBluetoothAdapter.getRemoteDevice(address);
+            device = mBluetoothAdapter.getRemoteDevice(mDeviceAddress);
         } catch (IllegalArgumentException e) {
-            Log.w(TAG, "Illegal bluetooth address: " + address);
+            Log.w(TAG, "Illegal bluetooth address: " + mDeviceAddress);
             return false;
         }
         if (device == null) {
@@ -261,8 +229,7 @@ public class BluetoothLeService extends Service {
         // parameter to false.
         mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
         Log.d(TAG, "Trying to create a new connection.");
-        mBluetoothDeviceAddress = address;
-        mConnectionState = STATE_CONNECTING;
+
         return true;
     }
 
@@ -272,23 +239,12 @@ public class BluetoothLeService extends Service {
      * {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
      * callback.
      */
-    public void disconnect() {
+    private void disconnect() {
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
-            Log.w(TAG, "BluetoothAdapter not initialized");
+            Log.w(TAG, "Bluetooth not initialized");
             return;
         }
         mBluetoothGatt.disconnect();
-    }
-
-    /**
-     * After using a given BLE device, the app must call this method to ensure resources are
-     * released properly.
-     */
-    public void close() {
-        Log.d(TAG, "close()");
-        if (mBluetoothGatt == null) {
-            return;
-        }
         mBluetoothGatt.close();
         mBluetoothGatt = null;
     }
@@ -351,19 +307,21 @@ public class BluetoothLeService extends Service {
         return mBluetoothGatt.getServices();
     }
 
-    private boolean isConnected(boolean checkIfConnected) {
-        if (mBluetoothGatt == null) return false;
+    public int getConnectionState() {
+        if (mBluetoothManager == null || mBluetoothGatt == null) {
+            return BluetoothProfile.STATE_DISCONNECTED;
+        }
 
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
-        final int state = bluetoothManager.getConnectionState(mBluetoothGatt.getDevice(),
-                BluetoothProfile.GATT);
-        return state == (checkIfConnected ?
-                BluetoothProfile.STATE_CONNECTED : BluetoothProfile.STATE_DISCONNECTED);
+        return mBluetoothManager.getConnectionState(
+                mBluetoothGatt.getDevice(), BluetoothProfile.GATT);
     }
 
-    public boolean isConnected() { return isConnected(true); }
-    public boolean isDisconnected() { return isConnected(false); }
+    public boolean isConnected() {
+        return getConnectionState() == BluetoothProfile.STATE_CONNECTED;
+    }
+    public boolean isDisconnected() {
+        return getConnectionState() == BluetoothProfile.STATE_DISCONNECTED;
+    }
 
     public void exchangeGattMtu(int mtu) {
         int retry = 5;
@@ -374,14 +332,23 @@ public class BluetoothLeService extends Service {
         }
     }
 
-    public String getConnectionState() {
-        return "";
+    public void setDevice(String name, String address) {
+        mDeviceName = name;
+        mDeviceAddress = address;
+
+        SharedPreferences.Editor editor = mSettings.edit();
+        editor.putString(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
+        editor.putString(EXTRAS_DEVICE_NAME, mDeviceName);
+        editor.commit();
+
+        connect();
+    }
+
+    public String getDeviceName() {
+        return mDeviceName;
     }
     public String getDeviceAddress() {
-        return "";
-    }
-    public String getDeviceName() {
-        return "";
+        return mDeviceAddress;
     }
     public int getRxBytes() {
         return 0;
