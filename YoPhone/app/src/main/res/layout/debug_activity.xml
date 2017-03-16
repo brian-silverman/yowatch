@@ -9,14 +9,6 @@
         android:layout_height="wrap_content"
         android:padding="10dp">
 
-        <LinearLayout style="@style/main_activity_linearlayout">
-            <TextView style="@style/main_activity_linearlayout_fieldname"
-                android:text="RX Packets:" />
-            <Space style="@style/main_activity_linearlayout_space" />
-            <TextView style="@style/main_activity_linearlayout_value"
-                android:id="@+id/rx_packets" />
-        </LinearLayout>
-
         <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="50dp"
@@ -38,19 +30,19 @@
                 android:layout_weight="1" />
 
             <ImageView style="@style/filled_height_icon"
-                android:id="@+id/play"
+                android:id="@+id/mic_play"
                 app:srcCompat="@drawable/ic_play" />
 
             <View style="@style/vertical_bar" />
 
             <ImageView style="@style/filled_height_icon"
-                android:id="@+id/stop"
+                android:id="@+id/mic_stop"
                 app:srcCompat="@drawable/ic_stop" />
 
             <View style="@style/vertical_bar" />
 
             <ImageView style="@style/filled_height_icon"
-                android:id="@+id/record"
+                android:id="@+id/mic_record"
                 android:layout_margin="8dp"
                 app:srcCompat="@drawable/ic_record" />
 
@@ -59,6 +51,8 @@
         <LinearLayout
             android:layout_width="fill_parent"
             android:layout_height="50dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="5dp"
             android:orientation="horizontal"
             >
 
@@ -75,19 +69,22 @@
                 android:layout_weight="1" />
 
             <TextView
+                android:id="@+id/speedtest_kbps"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:gravity="center"
+                android:layout_marginRight="10dp"
                 android:textSize="20sp" />
 
             <View style="@style/vertical_bar" />
 
             <ImageView style="@style/filled_height_icon"
-                android:id="@+id/imageButton"
-                app:srcCompat="@drawable/ic_play" />
+                android:id="@+id/speedtest_play"
+                app:srcCompat="@drawable/ic_play"
+                android:onClick="onClickSpeedTest"
+                />
 
         </LinearLayout>
-
     </LinearLayout>
 
 </ScrollView>

@@ -18,6 +18,8 @@
       <Data key="cf93e9ac-a572-4429-80c9-52030ec965dd" value="Clock_1" />
     </Group>
     <Group key="Pin">
+      <Data key="43ec2fa1-bf22-4b71-9477-b6ca7b97f0b0/23b8206d-1c77-4e61-be4a-b4037d5de5fc" value="UART_tx" />
+      <Data key="43ec2fa1-bf22-4b71-9477-b6ca7b97f0b0/78e33e5d-45ea-4b75-88d5-73274e8a7ce4" value="UART_rx" />
       <Data key="89e69d02-183d-4080-96dd-8b0b09c4b2a8/73b612cd-240c-4d8e-8340-ea28aabf4b11" value="CapSense_Sns" />
       <Data key="89e69d02-183d-4080-96dd-8b0b09c4b2a8/899719c0-e797-4403-a44f-07a66de2cbeb" value="CapSense_Cmod" />
       <Data key="acddd388-b93b-4713-8fe6-aadabf602bc2" value="RED" />
@@ -3603,6 +3605,16 @@
     </Group>
   </Group>
   <Group key="Pin2">
+    <Group key="43ec2fa1-bf22-4b71-9477-b6ca7b97f0b0/23b8206d-1c77-4e61-be4a-b4037d5de5fc">
+      <Group key="0">
+        <Data key="Port Format" value="1,5" />
+      </Group>
+    </Group>
+    <Group key="43ec2fa1-bf22-4b71-9477-b6ca7b97f0b0/78e33e5d-45ea-4b75-88d5-73274e8a7ce4">
+      <Group key="0">
+        <Data key="Port Format" value="1,4" />
+      </Group>
+    </Group>
     <Group key="89e69d02-183d-4080-96dd-8b0b09c4b2a8/73b612cd-240c-4d8e-8340-ea28aabf4b11">
       <Group key="0">
         <Data key="Port Format" value="2,1" />
@@ -3696,8 +3708,8 @@
     <Data key="CYDEV_CUSTOM_ID" value="0x00000000" />
     <Data key="CYDEV_DEBUG_PROTECT" value="OPEN" />
     <Data key="CYDEV_DEBUGGING_DPS" value="SWD" />
-    <Data key="CYDEV_HEAP_SIZE" value="0x80" />
-    <Data key="CYDEV_STACK_SIZE" value="0x0800" />
+    <Data key="CYDEV_HEAP_SIZE" value="0x800" />
+    <Data key="CYDEV_STACK_SIZE" value="0x2000" />
     <Data key="CYDEV_TEMPERATURE" value="-40C - 85C" />
     <Data key="CYDEV_USE_BUNDLED_CMSIS" value="True" />
     <Data key="CYDEV_VARIABLE_VDDA" value="True" />

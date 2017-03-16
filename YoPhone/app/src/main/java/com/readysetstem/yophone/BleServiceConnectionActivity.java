@@ -12,6 +12,8 @@ import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
+import java.util.UUID;
+
 public class BleServiceConnectionActivity extends AppCompatActivity {
     private final static String TAG = BleServiceConnectionActivity.class.getSimpleName();
     public BleService mBleService;
@@ -22,6 +24,7 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             mBleService = ((BleService.LocalBinder) service).getService();
+            onBleServiceConnected();
         }
 
         @Override
@@ -39,14 +42,22 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            updateConnectionState();
+            onConnectionState();
             if (BleService.ACTION_GATT_CONNECTION_CHANGE.equals(action)) {
-                updateBluetoothData(true);
+                onBluetoothData(true);
             } else if (BleService.ACTION_DATA_AVAILABLE.equals(action)) {
-                updateBluetoothData();
+                Log.i(TAG, "ACTION_DATA_AVAILABLE");
+                final String c = intent.getStringExtra(BleService.EXTRA_CHARACTERISTIC);
+                final UUID uuid = UUID.fromString(c);
+                onBluetoothData(uuid, intent.getByteArrayExtra(BleService.EXTRA_DATA));
             }
         }
     };
+
+    // TODO add periodic "ping" handler to test if watch is alive.  Modify value of connection
+    // state based on this handler (new state: not_repsonding).  Possibly disable handler
+    // when speedtest is running.  Perhaps make the ping handler run from the watch side (the
+    // watch could be set to a mode that sends a short notification every second).
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -81,12 +92,12 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         mBleService = null;
     }
 
-    public void updateConnectionState() {
+    public void onConnectionState() {
         if (mBleService != null) {
             final int state = mBleService.getConnectionState();
             switch (state) {
                 case BluetoothProfile.STATE_CONNECTED:
-                    updateBluetoothData();
+                    onBluetoothData();
                     mConnectionStateRid = R.string.connection_state_connected;
                     break;
                 case BluetoothProfile.STATE_DISCONNECTED:
@@ -107,10 +118,18 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         }
     }
 
-    public void updateBluetoothData(boolean clear) {
-    };
+    public void onBleServiceConnected() {
+    }
 
-    public void updateBluetoothData() {
-        updateBluetoothData(false);
-    };
+    public void onBluetoothData(final UUID characteristic, final byte[] data, final boolean clear) {
+    }
+    public void onBluetoothData(final boolean clear) {
+        onBluetoothData(null, null, clear);
+    }
+    public void onBluetoothData(final UUID characteristic, final byte[] data) {
+        onBluetoothData(characteristic, data, false);
+    }
+    public void onBluetoothData() {
+        onBluetoothData(null, null, false);
+    }
 }

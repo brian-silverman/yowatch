@@ -25,6 +25,8 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.UUID;
+
 /**
  * For a given BLE device, this Activity provides the user interface to connect, display data,
  * and display GATT services and characteristics supported by the device.  The Activity
@@ -54,7 +56,6 @@ public class MainActivity extends BleServiceConnectionActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main_activity);
-
         Log.d(TAG, "onCreate()");
 
         // Sets up UI references.
@@ -71,8 +72,8 @@ public class MainActivity extends BleServiceConnectionActivity {
 
         getSupportActionBar().setTitle(R.string.app_name);
 
-        updateConnectionState();
-        updateBluetoothData(true);
+        onConnectionState();
+        onBluetoothData(true);
     }
 
     @Override
@@ -119,11 +120,11 @@ public class MainActivity extends BleServiceConnectionActivity {
         super.onActivityResult(requestCode, resultCode, intent);
     }
 
-    public void updateBluetoothData(final boolean clear) {
+    public void onBluetoothData(final UUID characteristic, final byte[] data, final boolean clear) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                final boolean show = (mBleService == null) ? false : ! clear;
+                final boolean show = mBleService != null && ! clear;
 
                 mTvDeviceAddress.setText(show ? mBleService.getDeviceAddress() : "");
                 mTvDeviceName.setText(show ? mBleService.getDeviceName() : "");
@@ -138,8 +139,8 @@ public class MainActivity extends BleServiceConnectionActivity {
         });
     }
 
-    public void updateConnectionState() {
-        super.updateConnectionState();
+    public void onConnectionState() {
+        super.onConnectionState();
         mTvConnectionState.setText(mConnectionStateRid);
     }
 }

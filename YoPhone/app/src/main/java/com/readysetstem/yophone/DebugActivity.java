@@ -16,15 +16,17 @@
 
 package com.readysetstem.yophone;
 
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.graphics.Color;
 import android.support.v7.app.ActionBar;
-import android.app.Activity;
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
+
+import java.util.UUID;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect, display data,
@@ -35,8 +37,12 @@ import android.widget.Toast;
 public class DebugActivity extends BleServiceConnectionActivity {
     private final static String TAG = DebugActivity.class.getSimpleName();
 
-    private TextView mTvRxPackets;
     private ActionBar mActionBar;
+    private TextView mTvSpeedtestKbps;
+    private ImageView mIvSpeedtestPlay;
+    private int mLen;
+    private int mSpeedtestPackets;
+    private long mStartTime;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -46,29 +52,59 @@ public class DebugActivity extends BleServiceConnectionActivity {
         Log.d(TAG, "onCreate()");
 
         // Sets up UI references.
-        mTvRxPackets = (TextView) findViewById(R.id.rx_packets);
+        mTvSpeedtestKbps = (TextView) findViewById(R.id.speedtest_kbps);
+        mIvSpeedtestPlay = (ImageView) findViewById(R.id.speedtest_play);
 
         mActionBar = getSupportActionBar();
         mActionBar.setTitle(R.string.debug_title);
         mActionBar.setDisplayHomeAsUpEnabled(true);
 
-        updateConnectionState();
-        updateBluetoothData(true);
+        onConnectionState();
+        onBluetoothData(true);
     }
 
-    public void updateBluetoothData(final boolean clear) {
+    public void onBleServiceConnected() {
+        Log.i(TAG, "onBleServiceConnected()");
+        // TODO could simplify with a single write function
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        Log.i(TAG, characteristic.getUuid().toString());
+        characteristic.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        mBleService.writeCharacteristic(characteristic);
+    }
+
+    public void onBluetoothData(final UUID characteristic, final byte[] data, final boolean clear) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                final boolean show = (mBleService == null) ? false : ! clear;
+                final boolean show = (mBleService == null) ? false : !clear;
 
-                mTvRxPackets.setText(show ? String.valueOf(mBleService.getRxPackets()) : "");
+                // TODO convert characteristic passed around to UUIDs always (except accross intents)
+                Log.i(TAG, "onBluetoothData: " + (characteristic != null ? characteristic : "null") + "," + GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+                if (characteristic != null && characteristic.equals(UUID.fromString(GattAttributes.CHARACTERISTIC_DEBUG_COMMAND))) {
+                    Log.i(TAG, "onBluetoothData: " + (new Byte(data[0])).toString());
+                    switch (data[0]) {
+                        // TODO Need to make hardcoded command constants
+                        case 3:
+                            mSpeedtestPackets++;
+                            mTvSpeedtestKbps.setText(show ? String.valueOf(mSpeedtestPackets) + "%" : "");
+                            mLen = data.length;
+                            break;
+                        case 4:
+                            final float time = System.currentTimeMillis() - mStartTime;
+                            final float kbps = (100 * mLen * 8) / time;
+                            mTvSpeedtestKbps.setText(String.format("%.1f kbps", kbps));
+                            mIvSpeedtestPlay.setEnabled(true);
+                            mIvSpeedtestPlay.setColorFilter(null);
+                            break;
+                    }
+                }
             }
         });
     }
 
-    public void updateConnectionState() {
-        super.updateConnectionState();
+    public void onConnectionState() {
+        super.onConnectionState();
         mActionBar.setTitle(getString(R.string.debug_title) + " (" + getString(mConnectionStateRid) + ")");
     }
 
@@ -82,4 +118,18 @@ public class DebugActivity extends BleServiceConnectionActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    public void onClickSpeedTest(View view) {
+        // TODO Verify packets as they come in (incrementing uint32)
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        // TODO Do not use hardcoded constants
+        characteristic.setValue(2, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        characteristic.setValue(100, BluetoothGattCharacteristic.FORMAT_UINT32, 1);
+        mBleService.writeCharacteristic(characteristic);
+
+        mSpeedtestPackets = 0;
+        mStartTime = System.currentTimeMillis();
+        mIvSpeedtestPlay.setEnabled(false);
+        mIvSpeedtestPlay.setColorFilter(Color.argb(150,200,200,200));
+    }
 }

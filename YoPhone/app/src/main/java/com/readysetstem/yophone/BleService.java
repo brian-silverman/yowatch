@@ -58,12 +58,18 @@ public class BleService extends Service {
 
     private int mRxPackets = 0;
 
+    private String[] characteristicsWithNotifications = {
+            GattAttributes.CHARACTERISTIC_VOICE_DATA,
+            GattAttributes.CHARACTERISTIC_DEBUG_COMMAND,
+    };
+
     public final static String PKG = "com.readysetstem.yophone";
     public final static String ACTION_GATT_CONNECTION_CHANGE = PKG + ".ACTION_GATT_CONNECTION_CHANGE";
     public final static String ACTION_GATT_SERVICES_DISCOVERED =
             PKG + ".ACTION_GATT_SERVICES_DISCOVERED";
     public final static String ACTION_DATA_AVAILABLE = PKG + ".ACTION_DATA_AVAILABLE";
     public final static String EXTRA_DATA = PKG + ".EXTRA_DATA";
+    public final static String EXTRA_CHARACTERISTIC = PKG + ".EXTRA_CHARACTERISTIC";
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -82,11 +88,10 @@ public class BleService extends Service {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            setCharacteristicNotification(
-                    getCharacteristic(
-                            GattAttributes.SERVICE_SMARTWATCH,
-                            GattAttributes.CHARACTERISTIC_VOICE_DATA),
-                    true);
+            for (String c : characteristicsWithNotifications) {
+                setCharacteristicNotification(
+                        getCharacteristic(GattAttributes.SERVICE_SMARTWATCH, c), true);
+            }
             exchangeGattMtu(512);
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED);
@@ -105,6 +110,18 @@ public class BleService extends Service {
         }
 
         @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt,
+                                         BluetoothGattCharacteristic characteristic,
+                                         int status) {
+            Log.d(TAG, "onCharacteristicWrite()");
+/*
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+            }
+*/
+        }
+
+        @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
@@ -118,16 +135,15 @@ public class BleService extends Service {
     }
 
     private void broadcastUpdate(final String action,
-                                 final BluetoothGattCharacteristic characteristic) {
+                                 final BluetoothGattCharacteristic characteristic)
+    {
         final Intent intent = new Intent(action);
 
-        // For all profiles, write the data formatted in HEX.
+        Log.i(TAG, "broadcastUpdate()");
         final byte[] data = characteristic.getValue();
+        intent.putExtra(EXTRA_CHARACTERISTIC, characteristic.getUuid().toString());
         if (data != null && data.length > 0) {
-            final StringBuilder stringBuilder = new StringBuilder(data.length);
-            for(byte byteChar : data)
-                stringBuilder.append(String.format("%02X ", byteChar));
-            intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+            intent.putExtra(EXTRA_DATA, data);
         }
         sendBroadcast(intent);
     }
@@ -264,6 +280,15 @@ public class BleService extends Service {
         mBluetoothGatt.readCharacteristic(characteristic);
     }
 
+    public void writeCharacteristic(BluetoothGattCharacteristic characteristic) {
+        if (mBluetoothAdapter == null || mBluetoothGatt == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized");
+            return;
+        }
+        mBluetoothGatt.writeCharacteristic(characteristic);
+    }
+
+
     /**
      * Gets a characteristic given the service and characteristic attr strings
      *
@@ -276,9 +301,13 @@ public class BleService extends Service {
         final UUID UUID_CHARACTERISTIC = UUID.fromString(characteristicUuidString);
 
         BluetoothGattService service = mBluetoothGatt.getService(UUID_SERVICE);
+/*
+        for (BluetoothGattCharacteristic i: service.getCharacteristics()) {
+            Log.i(TAG, i.getUuid().toString());
+        }
+*/
         // TODO Get service may be null if not connected.
         return service.getCharacteristic(UUID_CHARACTERISTIC);
-
     }
 
     /**
