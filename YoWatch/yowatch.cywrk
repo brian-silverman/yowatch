@@ -2,20 +2,24 @@
 <CyXmlSerializer>
 <!--This file is machine generated and read. It is not intended to be edited by hand.-->
 <!--Due to this, there is no schema for this file.-->
-<CyGuid_2867d519-54d2-4c01-9830-c51cb08bc3dd type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjMgmtWrkspc" version="5" xml_contents_version="3" name="yowatch" persistent="" platform="NOT_USED">
+<CyGuid_2867d519-54d2-4c01-9830-c51cb08bc3dd type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjMgmtWorkspaceSerialize" version="5" xml_contents_version="3" name="yowatch" persistent="yowatch.cywrk" platform="NOT_USED">
 <current_project name=".\yowatch.cydsn\yowatch.cyprj" />
 <wrkspc_folders />
 <files />
 <projects>
 <v>.\yowatch.cydsn\yowatch.cyprj</v>
+<v>.\Design01.cydsn\Design01.cyprj</v>
+<v>.\InterIcSound01.cydsn\InterIcSound01.cyprj</v>
+<v>.\Design04.cydsn\Design04.cyprj</v>
+<v>.\DMA_SPI_PSoC402.cydsn\DMA_SPI_PSoC402.cyprj</v>
 </projects>
 <workspace_id v="b2cadc3b-5132-43be-913d-9df3cdbba6c0" />
-<WriteAppVersionLastSavedWith v="3.1.0.1570" />
-<WriteAppMarketingVersionLastSavedWith v="3.1 Component Pack 1" />
-<CyGuid_dcbd9771-0334-43dc-9cc3-fe99dc3c5316 type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjDependencyList" version="4">
+<WriteAppVersionLastSavedWith v="4.0.0.432" />
+<WriteAppMarketingVersionLastSavedWith v="4.0 Update 1" />
+<CyGuid_dcbd9771-0334-43dc-9cc3-fe99dc3c5316 type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjMgmtWorkspaceSerialize+CyPrjDependencyList" version="4">
 <wrkspc_dependencies />
 </CyGuid_dcbd9771-0334-43dc-9cc3-fe99dc3c5316>
-<CyGuid_63b68103-67f5-4406-8da6-5c8625765b82 type_name="CyDesigner.Common.ProjMgmt.Model.CyIgnoredSystemDepsList" version="1">
+<CyGuid_63b68103-67f5-4406-8da6-5c8625765b82 type_name="CyDesigner.Common.ProjMgmt.Model.CyPrjMgmtWorkspaceSerialize+CyIgnoredSystemDepsList" version="1">
 <wrkspc_dependencies />
 </CyGuid_63b68103-67f5-4406-8da6-5c8625765b82>
 </CyGuid_2867d519-54d2-4c01-9830-c51cb08bc3dd>
