@@ -1,26 +1,160 @@
-int p1, p2, p3;
-#include <main.h>
+/*
+ * YoWatch main
+ *
+ * The YoWatch smartwatch runs on the PSoC 4 BLE (specifically the
+ * CY8C4248LQI-BL583).  The watch is intended to be paired with a Android phone
+ * (appropriately called YoPhone) - without one, it is virtually useless.  The
+ * watch has 3 primary functions:
+ *      1) Tell time - duh!
+ *      2) Display notifications received in YoPhone (email, texts, etc)
+ *      3) Fast answers - Alexa style response to questions
+ *
+ * As such, #3 is the bulk of the work in this app.  To support this, the
+ * hardware contains:
+ *      - A capsense proximity sensor
+ *      - A I2S Microphone
+ *      - A Serial RAM for audio buffering
+ *      - A BLE antenna (and BLE subsystem supported by the PSoC)
+ *      - An OLED display
+ *
+ * So, the normal use case to support #3 is:
+ *      - Proximity sensor detect when watch is near user's face
+ *      - Microphone begins recording audio, and buffering it
+ *      - Audio is sent via BLE to YoPhone
+ *      - YoPhone uses Speech-to-text cloud service
+ *          - Cloud converts audio to text
+ *          - YoPhone sends back partial text to YoWatch
+ *          - YoWatch displays partial text when it receives it
+ *      - YoPhone uses final text to run specific command.  
+ *          - In general, the command does a web search for some data, parses
+ *          the data, and sends the data back to YoWatch
+ *          - YoPhone may use a combination of cloud services, like Google.
+ *          - YoWatch displays the final data
+ *      - Example:
+ *          - User says "how many square miles in maryand"
+ *              - YoWatch displays: "12,407 mi²"
+ *          - User says "What is the capital of vermont"
+ *              - YoWatch displays: "Montpelier"
+ *          - User says "who played deckard in blade runner"
+ *              - YoWatch displays: "Harrison Ford"
+ *          - User says "text jason lets do lunch"
+ *              - YoWatch sends a text to Jason
+ *      - YoWatch is dumb, in that it doesn't understand the commands.  It just
+ *      sends audio and receives text to display.  All the command types are
+ *      handled by YoPhone.
+ *
+ * The flow of audio is:
+ *
+ *           DMA
+ *  I2S Mic -----> buf1
+ *                       DMA               DMA
+ *                 buf2 -----> Serial RAM -----> buf -> compress -> BLE
+ *
+ *           (ping pong bufs)
+ *
+ * Copyright (C) 2017 Brian Silverman <bri@readysetstem.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3 as
+ * published by the Free Software Foundation.
+ */
+#include <project.h>
 #include <BLEApplications.h>
 #include <errno.h>
 #include <stdio.h>
 
+//
+// Speedtest buffer
+// TODO: merge with I2S DMA buffers
+//
 uint8 buffer[MAX_MTU_SIZE];
-int deviceConnected = 0;
 int speedTestPackets;
 
-int enqCount;
+int deviceConnected = 0;
 
+//
+// Audio DMA buffers
+//
+// Bufs are oversized by 4 bytes, because when the buffer are sent to the SPI
+// Serial RAM buffer, the received buffer included the 4 byte SPI Serial RAM
+// address.
+//
+#define BUFSIZE (0x100)
+uint8 buf1[BUFSIZE + 4];
+uint8 buf2[BUFSIZE + 4];
+int stopI2sDma = 1;
+
+//
+// SPI bus used for:
+//      - Serial RAM writes (requires TX DMA)
+//      - Serial RAM reads (requires TX and RX DMA)
+//      - LCD writes (requires TX DMA)
+// These variables keep track of the current SPI state - only valid during the
+// locked period of a SPI transaction (LockSpiDma()/UnlockSpiDma())
+//
+// Usage of the SPI bus must be locked.  When a SPI DMA transaction can not be
+// completed because the bus is locked, the transaction is queued, and
+// performed immediately after the current transaction finishes.
+//
+// The bus must not be overutilized for a period greater than the queue allows.
+// If it is, the pending transaction will overfill, and bad things will ensue
+// (assertion).
+//
+enum SPI_MODE {
+    SPI_MODE_NONE,
+    SPI_MODE_ENQUEUE,
+    SPI_MODE_DEQUEUE,
+    SPI_MODE_LCD,
+} spiTxMode, spiRxMode;
+
+int spiDmaLocked = 0;
+
+//
+// SPI Serial RAM buffer queue (circular)
+//
+// Queue starts with a count of QUEUE_SIZE bytes free.  used + free + pending =
+// QUEUE_SIZE.  Queue starts with head = tail = 0, and bytes are added to tail,
+// which increments tail.  Pending bytes are added/removed from queue when DMA
+// completes.
+//
 #define QUEUE_SIZE (128 * 1024)
+struct {
+    uint32 pendingTail;
+    uint32 pendingTailBytes;
+    uint32 pendingHead;
+    uint32 pendingHeadBytes;
+    uint32 tail;
+    uint32 head;
+    uint32 used;
+    uint32 free;
+} bufq;
 
-#define CLOCK_FREQ_MHZ 1
+//
+// Circular buffer of queue descriptors.  To simplify queueing, one dummy
+// descriptor is between head and tail.  head == tail means empty,
+// (tail + 1 % NUM) == head means full.
+//
+#define NUM_QDS 8
 
-enum DMA_MODE {
-    DMA_MODE_NONE,
-    DMA_MODE_ENQUEUE,
-    DMA_MODE_DEQUEUE,
-    DMA_MODE_LCD,
-} spiTxDmaMode, spiRxDmaMode;
+struct QUEUED_DESCRIPTOR {
+    void (*call)();
+    uint8 * buf;
+    uint32 bytes;
+    int * done;
+};
 
+struct QUEUED_DESCRIPTORS {
+    struct QUEUED_DESCRIPTOR queue[NUM_QDS];
+    uint32 head;
+    uint32 tail;
+} queuedDescriptors;
+
+// Freq of Timer_Programmable_* input clock
+#define TIMER_CLOCK_FREQ_MHZ 1
+
+//
+// For debug testing
+//
 enum CONCURRENCY_TEST_TYPE {
     CONCURRENCY_TEST_NORMAL,
     CONCURRENCY_TEST_FAST_DEQ,
@@ -28,8 +162,11 @@ enum CONCURRENCY_TEST_TYPE {
     CONCURRENCY_TEST_MAX,
 };
 
+// count for debug testing
+int enqCount;
+
 //
-// For debug, enqueue/dequeue test periods, for each CONCURRENCY_TEST_TYPE
+// For debug, enqueue/dequeue test periods, for each CONCURRENCY_TEST_TYPE.
 //
 #define APPROX_BUF_WRITE_PERIOD_US 1000
 uint32 enqPeriodUs[CONCURRENCY_TEST_MAX] = {
@@ -43,6 +180,9 @@ uint32 deqPeriodUs[CONCURRENCY_TEST_MAX] = {
     5*APPROX_BUF_WRITE_PERIOD_US
     };
 
+//
+// Main state machine STATEs
+//
 enum STATE {
     NONE,
     OFF,
@@ -58,6 +198,9 @@ enum STATE {
     DEBUG_SPEEDTEST,
     DEBUG_SPEEDTEST_2,
     DEBUG_MIC,
+    DEBUG_MIC_2,
+    DEBUG_MIC_3,
+    DEBUG_MIC_4,
     DEBUG_MEMTEST_FILL,
     DEBUG_MEMTEST_FILL_2,
     DEBUG_MEMTEST_FILL_3,
@@ -78,7 +221,7 @@ void PrintState(
     )
 {
     #define PRINT_CASE(state) case state: UART_UartPutString("State: " #state "\r\n"); break
-    #define X_PRINT_CASE(state) case state: break
+    #define NO_PRINT_CASE(state) case state: break
 
     switch (state) {
         PRINT_CASE(NONE);
@@ -95,27 +238,33 @@ void PrintState(
         PRINT_CASE(DEBUG_SPEEDTEST);
         PRINT_CASE(DEBUG_SPEEDTEST_2);
         PRINT_CASE(DEBUG_MIC);
+        NO_PRINT_CASE(DEBUG_MIC_2);
+        NO_PRINT_CASE(DEBUG_MIC_3);
+        NO_PRINT_CASE(DEBUG_MIC_4);
         PRINT_CASE(DEBUG_MEMTEST_FILL);
-        X_PRINT_CASE(DEBUG_MEMTEST_FILL_2);
-        X_PRINT_CASE(DEBUG_MEMTEST_FILL_3);
+        NO_PRINT_CASE(DEBUG_MEMTEST_FILL_2);
+        NO_PRINT_CASE(DEBUG_MEMTEST_FILL_3);
         PRINT_CASE(DEBUG_MEMTEST_FILL_4);
-        X_PRINT_CASE(DEBUG_MEMTEST_DEPLETE);
-        X_PRINT_CASE(DEBUG_MEMTEST_DEPLETE_2);
+        NO_PRINT_CASE(DEBUG_MEMTEST_DEPLETE);
+        NO_PRINT_CASE(DEBUG_MEMTEST_DEPLETE_2);
         PRINT_CASE(DEBUG_MEMTEST_DEPLETE_3);
         PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY);
-        X_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_2);
-        X_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_3);
+        NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_2);
+        NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_3);
         PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_4);
-        X_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_5);
-        X_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_6);
+        NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_5);
+        NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_6);
         default:
             UART_UartPutString("State: UNKNOWN!\r\n");
             break;
     }
 }
 
+//
+// assert() function
+// TODO: send assert to LCD display
+//
 #define assert(x) _assert(x, #x, __LINE__, __FILE__)
-
 void _assert(int assertion, char * assertionStr, int line, char * file)
 {
     char s[100];
@@ -126,6 +275,9 @@ void _assert(int assertion, char * assertionStr, int line, char * file)
     }
 }
 
+//
+// BLE callback when debug command received
+//
 CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
     CYBLE_GATT_DB_ATTR_HANDLE_T handle,
     uint8 * data,
@@ -162,6 +314,10 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
     return 0;
 }
 
+//
+// BLE callback when connection changed
+// TODO handle state change (in main state machine) when device disconnects
+//
 void OnConnectionChange(
     int connected
     )
@@ -171,43 +327,17 @@ void OnConnectionChange(
     deviceConnected = connected;
 }
 
-#define BUFSIZE (0x100)
-uint8 buf[BUFSIZE + 4];
-uint8 buf2[BUFSIZE + 4];
-
-struct {
-    uint32 pendingTail;
-    uint32 pendingTailBytes;
-    uint32 pendingHead;
-    uint32 pendingHeadBytes;
-    uint32 tail;
-    uint32 head;
-    uint32 used;
-    uint32 free;
-} bufq;
-
-struct QUEUED_DESCRIPTOR {
-    void (*call)();
-    uint8 * buf;
-    uint32 bytes;
-    int * done;
-};
-
-#define NUM_QDS 8
-
 //
-// Circular buffer of queue descriptors.  To simplify queueing, one dummy
-// descriptor is between head and tail.  head == tail means empty,
-// (tail + 1 % NUM) == head means full.
+// Lock the SPI bus to perform an atomic SPI DMA transaction.
 //
-struct QUEUED_DESCRIPTORS {
-    struct QUEUED_DESCRIPTOR queue[NUM_QDS];
-    uint32 head;
-    uint32 tail;
-} queuedDescriptors;
-
-int spiDmaLocked = 0;
-
+// If lock is unavailable, transaction /qd/ is queued, and will performed (in
+// FIFO order) once the current SPI DMA transaction completes.
+//
+// /qd/ must be valid.
+//
+// Returns true if the bus was idle (and is now locked).  Returns false if the
+// bus was already locked - the given /qd/ is now queued.
+//
 int LockSpiDma(struct QUEUED_DESCRIPTOR * qd)
 {
     int wasLocked;
@@ -231,6 +361,12 @@ int LockSpiDma(struct QUEUED_DESCRIPTOR * qd)
     return wasLocked;
 }
 
+//
+// Unlocks SPI bus from a previous LockSpiDma() call.
+//
+// If previous transactions were queued, causes next transaction to be started
+// (and keeps bus locked).
+//
 void UnlockSpiDma()
 {
     uint8 interruptState;
@@ -256,39 +392,35 @@ void UnlockSpiDma()
 
     // If descriptor was dequeued, run it
     if (pqd) {
-        pqd->call(pqd->buf, pqd->bytes, pqd->done, 1);
+        pqd->call(pqd->buf, pqd->bytes, pqd->done);
     }
 }
-
-void I2sRxDmaIsr(void)
-{
-}
-
-int * spiTxDmaDone;
-int * spiRxDmaDone;
-
-void DummyDmaIsr(void) {}
 
 //
 // SPI TX DMA ISR - data sent, update queue.
 //
 // Second spurious ISR may (always?) occur - code handles being called multiple
-// times in a row safely.
+// times in a row safely, by setting mode to SPI_MODE_NONE.
 //
+// spiTxDmaDone is a pointer to a flag - it must have been configured and
+// zeroed at the start of the DMA transaction, and it is set to 1 now to signal
+// completion.
+//
+int * spiTxDmaDone;
 void SpiTxDmaIsr(void)
 {
-    enum DMA_MODE mode;
-    mode = spiTxDmaMode;
-    spiTxDmaMode = DMA_MODE_NONE;
+    enum SPI_MODE mode;
+    mode = spiTxMode;
+    spiTxMode = SPI_MODE_NONE;
     switch (mode) {
-        case DMA_MODE_ENQUEUE:
+        case SPI_MODE_ENQUEUE:
             bufq.tail = bufq.pendingTail;
             bufq.used += bufq.pendingTailBytes;
             bufq.pendingTailBytes = 0;
             *spiTxDmaDone = 1;
             UnlockSpiDma();
             return;
-        case DMA_MODE_LCD:
+        case SPI_MODE_LCD:
             return;
         default:
             return;
@@ -298,15 +430,16 @@ void SpiTxDmaIsr(void)
 //
 // SPI TX DMA ISR - data received, update queue.
 //
-// See SpiTxDmaIsr() about second spurious ISR.
+// See SpiTxDmaIsr() for more info.
 //
+int * spiRxDmaDone;
 void SpiRxDmaIsr(void)
 {
-    enum DMA_MODE mode;
-    mode = spiRxDmaMode;
-    spiRxDmaMode = DMA_MODE_NONE;
+    enum SPI_MODE mode;
+    mode = spiRxMode;
+    spiRxMode = SPI_MODE_NONE;
     switch (mode) {
-        case DMA_MODE_DEQUEUE:
+        case SPI_MODE_DEQUEUE:
             bufq.head = bufq.pendingHead;
             bufq.free += bufq.pendingHeadBytes;
             bufq.pendingHeadBytes = 0;
@@ -318,6 +451,9 @@ void SpiRxDmaIsr(void)
     }
 }
 
+//
+// Init /bufq/
+//
 void BufQueueInit()
 {
     bufq.pendingTail = 0;
@@ -338,32 +474,38 @@ void BufQueueInit()
 // The buffer is added to the queue tail, but the tail will only be updated
 // once the DMA completes.
 //
-// Returns 0 on success, or negative value on error.  EAGAIN indicates call has
+// @param buf       buffer to be enqueued to Serial RAM
+// @param bytes     size in bytes of /buf/
+// @param done      flag that will be set when DMA completes
+//
+// @return 0 on success, or negative value on error.  EAGAIN indicates call has
 // been queued, will be recalled when running DMA is complete.
 //
 int enqueueDone;
-int EnqueueBytes(uint8 *buf, uint32 bytes, int * done, int queuedCall)
+int EnqueueBytesNoLock(uint8 *buf, uint32 bytes, int * done);
+int EnqueueBytes(uint8 *buf, uint32 bytes, int * done)
 {
-    char s[32];
-    uint32 tail;
-    int isSpaceAvailable;
-    uint8 interruptState;
     struct QUEUED_DESCRIPTOR qd;
-    int ret;
 
     if (done != NULL) {
         *done = 0;
     }
-    if (! queuedCall) {
-        qd.call = &EnqueueBytes;
-        qd.buf = buf;
-        qd.bytes = bytes;
-        qd.done = done;
-        if (LockSpiDma(&qd)) return -EAGAIN;
-    }
+    qd.call = (void (*)()) &EnqueueBytesNoLock;
+    qd.buf = buf;
+    qd.bytes = bytes;
+    qd.done = done;
+    if (LockSpiDma(&qd)) return -EAGAIN;
+
+    return EnqueueBytesNoLock(buf, bytes, done);
+}
+
+int EnqueueBytesNoLock(uint8 *buf, uint32 bytes, int * done)
+{
+    uint32 tail;
+    int isSpaceAvailable;
+    uint8 interruptState;
 
     // Back to back DMAs can clobber bits at the end of the first DMA.
-    // FIXME: only need 5 us?
     CyDelayUs(5);
 
     interruptState = CyEnterCriticalSection();
@@ -388,6 +530,7 @@ int EnqueueBytes(uint8 *buf, uint32 bytes, int * done, int queuedCall)
     if (done == NULL) {
         done = &enqueueDone;
     }
+    *done = 0;
     spiTxDmaDone = done;
 
     SpiTxDma_SetInterruptCallback(&SpiTxDmaIsr);
@@ -411,7 +554,7 @@ int EnqueueBytes(uint8 *buf, uint32 bytes, int * done, int queuedCall)
     SPI_1_SpiUartWriteTxData((tail >> 16) & 0xFF);
     SPI_1_SpiUartWriteTxData((tail >> 8) & 0xFF);
     SPI_1_SpiUartWriteTxData((tail >> 0) & 0xFF);
-    spiTxDmaMode = DMA_MODE_ENQUEUE;
+    spiTxMode = SPI_MODE_ENQUEUE;
     SpiTxDma_ChEnable();
     CyExitCriticalSection(interruptState);
 
@@ -428,29 +571,40 @@ int EnqueueBytes(uint8 *buf, uint32 bytes, int * done, int queuedCall)
 // The buffer is removed from the queue head, but the head will only be updated
 // once the DMA completes.
 //
-// The given /buf/ must be 4 bytes longer than the /bytes/ specified.  A SPI
-// command/address will be filled in as the first 4 bytes of the returned /buf/.
+// @param buf       buffer to be dequeued from Serial RAM.
+//                  The given /buf/ must be 4 bytes longer than the /bytes/
+//                  specified.  A SPI command/address will be filled in as the
+//                  first 4 bytes of the returned /buf/.
+// @param bytes     size in bytes of /buf/
+// @param done      flag that will be set when DMA completes
+//
+// @return 0 on success, or negative value on error.  EAGAIN indicates call has
+// been queued, will be recalled when running DMA is complete.
 //
 uint8 allff[BUFSIZE + 4];
 int dequeueDone;
-int DequeueBytes(uint8 *buf, int bytes, int * done, int queuedCall)
+int DequeueBytesNoLock(uint8 *buf, int bytes, int * done);
+int DequeueBytes(uint8 *buf, int bytes, int * done)
 {
-    uint32 head;
-    int j;
-    int isDataAvailable;
-    uint8 interruptState;
     struct QUEUED_DESCRIPTOR qd;
 
     if (done != NULL) {
         *done = 0;
     }
-    if (! queuedCall) {
-        qd.call = &DequeueBytes;
-        qd.buf = buf;
-        qd.bytes = bytes;
-        qd.done = done;
-        if (LockSpiDma(&qd)) return -EAGAIN;
-    }
+    qd.call = (void (*)()) &DequeueBytesNoLock;
+    qd.buf = buf;
+    qd.bytes = bytes;
+    qd.done = done;
+    if (LockSpiDma(&qd)) return -EAGAIN;
+
+    return DequeueBytesNoLock(buf, bytes, done);
+}
+
+int DequeueBytesNoLock(uint8 *buf, int bytes, int * done)
+{
+    uint32 head;
+    int isDataAvailable;
+    uint8 interruptState;
 
     // Back to back DMAs can clobber bits at the end of the first DMA.
     CyDelayUs(5);
@@ -475,14 +629,15 @@ int DequeueBytes(uint8 *buf, int bytes, int * done, int queuedCall)
     }
 
     if (done == NULL) {
-        done = &enqueueDone;
+        done = &dequeueDone;
     }
+    *done = 0;
     spiRxDmaDone = done;
 
     // TODO - need to write from FF buf without source increment
     memset(allff, 0xFF, sizeof(allff));
 
-    spiTxDmaMode = DMA_MODE_DEQUEUE;
+    spiTxMode = SPI_MODE_DEQUEUE;
     SpiTxDma_SetInterruptCallback(&SpiTxDmaIsr);
     SpiTxDma_SetSrcAddress(0, allff);
     SpiTxDma_SetDstAddress(0, (void *) SPI_1_TX_FIFO_WR_PTR);
@@ -510,41 +665,106 @@ int DequeueBytes(uint8 *buf, int bytes, int * done, int queuedCall)
     SPI_1_SpiUartWriteTxData((head >> 16) & 0xFF);
     SPI_1_SpiUartWriteTxData((head >> 8) & 0xFF);
     SPI_1_SpiUartWriteTxData((head >> 0) & 0xFF);
-    spiRxDmaMode = DMA_MODE_DEQUEUE;
+    spiRxMode = SPI_MODE_DEQUEUE;
     SpiRxDma_ChEnable();
-    spiTxDmaMode = DMA_MODE_DEQUEUE;
+    spiTxMode = SPI_MODE_DEQUEUE;
     SpiTxDma_ChEnable();
     CyExitCriticalSection(interruptState);
 
     return 0;
 }
 
+//
+// For DEBUG_MEMTEST_CONCURRENCY testing, periodic enqueuing of bytes
 CY_ISR(DebugMemtestIsr)
 {
     int i;
 
-Pin_1_Write(p1); p1 = ! p1;
     Timer_Programmable_ClearInterrupt(Timer_Programmable_GetInterruptSource());
     for (i = 0; i < BUFSIZE/sizeof(uint32); i++) {
-        ((uint32 *) buf)[i] = enqCount++;
+        ((uint32 *) buf1)[i] = enqCount++;
     }
-    int ret = EnqueueBytes(buf, BUFSIZE, NULL, 0);
+    int ret = EnqueueBytes(buf1, BUFSIZE, NULL);
     // If didn't queue, rollback counter
     if (ret == -ENOSPC) {
         enqCount -= BUFSIZE/sizeof(uint32);
     }
 }
 
+//
+// I2S DMA complete ISR.
+//
+// When I2S DMA from Mic to RAM buf completes, enqueue the buffer to SPI Serial
+// RAM, and start a new I2S DMA on the ping pong buf.
+//
+uint8 * I2sStartDma();
+void I2sRxDmaIsr(void)
+{
+    if (stopI2sDma) {
+        I2S_1_DisableRx();
+    } else {
+        uint8 * buf = I2sStartDma();
+
+        // Enqueue audio buf to Serial RAM (don't care when it finishes)
+        int ret = EnqueueBytes(buf, BUFSIZE, NULL);
+        if (ret == -ENOSPC) {
+            // Handle error?
+        }
+
+    }
+}
+
+//
+// Start an I2S Mic DMA transaction to the given /buf/.
+//
+// As the completion ISR starts another DMA transaction when this one
+// completes, the sequenece of DMAs will run forever until stopped
+// (via I2sStopDma())
+//
+uint8 * I2sStartDma()
+{
+    static uint8 * pCurrentBuf = buf1;
+    uint8 * pPrevBuf;
+    pPrevBuf = pCurrentBuf;
+    pCurrentBuf = pCurrentBuf == buf1 ? buf2 : buf1;
+    if (stopI2sDma) {
+        stopI2sDma = 0;
+        I2S_1_ClearRxFIFO();
+        I2S_1_EnableRx();
+    }
+    I2sRxDma_SetInterruptCallback(&I2sRxDmaIsr);
+    I2sRxDma_SetSrcAddress(0, (void *) I2S_1_RX_CH0_F0_PTR);
+    I2sRxDma_SetDstAddress(0, pCurrentBuf);
+    I2sRxDma_SetNumDataElements(0, BUFSIZE);
+    I2sRxDma_ValidateDescriptor(0);
+    I2sRxDma_ChEnable();
+    return pPrevBuf;
+}
+
+//
+// Stop an I2S DMA transaction.  See I2sStartDma().
+//
+void I2sStopDma()
+{
+    stopI2sDma = 1;
+}
+
+//
+// Main entry point:
+//      - Init modules
+//      - Run state machine forever
+//
 int main()
 {
     uint32 n = 0;
     int ret;
     enum STATE newState, prevState;
-    int j;
+    int i;
     char s[32];
     enum CONCURRENCY_TEST_TYPE concurrencyTestType;
     int deqCount;
     int done;
+    int micBytes;
 
     prevState = OFF;
     state = SLEEP;
@@ -554,8 +774,7 @@ int main()
 
     CyGlobalIntEnable;
 
-    I2sRxDma_SetInterruptCallback(&I2sRxDmaIsr);
-
+    I2sRxDma_Init();
     SpiTxDma_Init();
     SpiRxDma_Init();
 
@@ -573,65 +792,11 @@ int main()
 
     Timer_Programmable_Init();
 
+    BufQueueInit();
+
     UART_UartPutString("--- STARTUP ---\r\n");
 
-    if (1) {
-        uint8 c;
-        uint32 sample;
-        int i = 0;
-        int n = 0;
-        int count = 0;
-
-#if 0
-        I2S_1_ClearRxFIFO();
-        I2S_1_EnableRx();
-        I2sRxDma_Start((void *) I2S_1_RX_CH0_F0_PTR, buf);
-        I2sRxDma_SetNumDataElements(0, BUFSIZE * 2);
-        while (!done);
-        UART_UartPutString("done 1\r\n");
-#if 0
-        SpiTxDma_Start(buf, buf2);
-        SpiTxDma_SetNumDataElements(0, 0x40);
-        SpiTxDma_Trigger();
-        UART_UartPutString("triggered\r\n");
-        while (!done2);
-#endif
-        UART_UartPutString("done 2\r\n");
-#else
-        while (n < BUFSIZE) {
-            while(!((c = I2S_1_ReadRxStatus()) &
-                (I2S_1_RX_FIFO_0_NOT_EMPTY | I2S_1_RX_FIFO_1_NOT_EMPTY)));
-
-            if (c & I2S_1_RX_FIFO_0_NOT_EMPTY) {
-                sample = sample << 8 | I2S_1_ReadByte(I2S_1_RX_LEFT_CHANNEL);
-                i = (i + 1) % 4;
-                if (i == 0) {
-                    buf[n++] = (uint16) sample;
-                }
-            }
-            if (c & I2S_1_RX_FIFO_1_NOT_EMPTY) {
-                I2S_1_ReadByte(I2S_1_RX_RIGHT_CHANNEL);
-            }
-        }
-#endif
-        //for (i = 0; i < BUFSIZE; i++) {
-        UART_UartPutString("------------------------\r\n");
-        for (i = 0; i < BUFSIZE; i++) {
-            sprintf(s, "%04X\r\n", buf[i]);
-            UART_UartPutString(s);
-        }
-        UART_UartPutString("------------------------\r\n");
-#if 0
-        for (i = 0; i < 16; i++) {
-            sprintf(s, "%04X\r\n", buf2[i]);
-            UART_UartPutString(s);
-        }
-#endif
-        UART_UartPutString("------------------------\r\n");
-        sprintf(s, "%d\r\n", count); UART_UartPutString(s);
-    }
-
-    int i = 0;
+state = DEBUG_MIC;
     for (;;) {
         CyBle_ProcessEvents();
 
@@ -710,25 +875,69 @@ int main()
 
 
             case DEBUG_MIC:
-                {
-                    uint8 c;
-                    uint32 sample;
+                BufQueueInit();
+                micBytes = 0;
+                I2sStartDma();
+                newState = DEBUG_MIC_2;
+                break;
 
-                    while(!((c = I2S_1_ReadRxStatus()) & (I2S_1_RX_FIFO_0_NOT_EMPTY | I2S_1_RX_FIFO_1_NOT_EMPTY))) {
-                    }
-                    if (c & I2S_1_RX_FIFO_0_NOT_EMPTY) {
-                        sample = sample << 8 | I2S_1_ReadByte(I2S_1_RX_LEFT_CHANNEL);
-                        i = (i + 1) % 4;
-                        if (i == 0) {
-                            //UART_UartPutChar((uint8) ((sample >> 14) & 0xFF));
-                            //UART_UartPutChar((uint8) ((sample >> 22) & 0xFF));
-                        }
-                    }
-                    if (c & I2S_1_RX_FIFO_1_NOT_EMPTY) {
-                        I2S_1_ReadByte(I2S_1_RX_RIGHT_CHANNEL);
-                    }
+            case DEBUG_MIC_2:
+                if (bufq.used >= 100000) {
+                    I2sStopDma();
+                    newState = DEBUG_MIC_3;
                 }
                 break;
+
+            case DEBUG_MIC_3:
+                ret = DequeueBytes(buffer, BUFSIZE, &done);
+                if (ret == -ENODATA) {
+                    newState = DEBUG_IDLE;
+                } else {
+                    newState = DEBUG_MIC_4;
+
+                }
+                break;
+
+            case DEBUG_MIC_4:
+                if (done) {
+                    for (i = 4; i < BUFSIZE + 4; i += 2) {
+                        sprintf(s, "%04X\r\n", *((uint16 *) &buffer[i]));
+                        UART_UartPutString(s);
+                    }
+                    newState = DEBUG_MIC_3;
+                }
+                break;
+#if 0
+            case DEBUG_MIC_2:
+                ret = DequeueBytes(buffer, BUFSIZE, &done);
+                if (ret != -ENODATA) {
+                    newState = DEBUG_MIC_3;
+                }
+                break;
+
+            case DEBUG_MIC_3:
+                if (done) {
+                    newState = DEBUG_MIC_4;
+                }
+                break;
+
+            case DEBUG_MIC_4:
+                micBytes += BUFSIZE;
+#if 1
+                for (i = 0; i < BUFSIZE; i += 2) {
+                    sprintf(s, "%04X\r\n", *((uint16 *) &buffer[i]));
+                    UART_UartPutString(s);
+                }
+#endif
+                //if (micBytes > 200000) {
+                if (micBytes > 100000) {
+                    I2sStopDma();
+                    newState = DEBUG_IDLE;
+                } else {
+                    newState = DEBUG_MIC_2;
+                }
+                break;
+#endif
 
             case DEBUG_MEMTEST_FILL:
                 //
@@ -743,9 +952,9 @@ int main()
             case DEBUG_MEMTEST_FILL_2:
                 if (bufq.free >= BUFSIZE) {
                     for (i = 0; i < BUFSIZE/sizeof(uint32); i++) {
-                        ((uint32 *) buf)[i] = enqCount++;
+                        ((uint32 *) buf1)[i] = enqCount++;
                     }
-                    ret = EnqueueBytes(buf, BUFSIZE, &done, 0);
+                    ret = EnqueueBytes(buf1, BUFSIZE, &done);
                     assert(ret == 0);
                     newState = DEBUG_MEMTEST_FILL_3;
                 } else {
@@ -769,7 +978,7 @@ int main()
                 assert(bufq.used == QUEUE_SIZE);
 
                 // Test overfilling
-                ret = EnqueueBytes(buf, BUFSIZE, &done, 0);
+                ret = EnqueueBytes(buf1, BUFSIZE, &done);
                 assert(ret == -ENOSPC);
                 deqCount = 0;
                 newState = DEBUG_MEMTEST_DEPLETE;
@@ -780,7 +989,7 @@ int main()
                 // Dequeue until empty
                 //
                 if (bufq.used > 0) {
-                    ret = DequeueBytes(buf, BUFSIZE, &done, 0);
+                    ret = DequeueBytes(buf1, BUFSIZE, &done);
                     assert(ret == 0);
                     newState = DEBUG_MEMTEST_DEPLETE_2;
                 } else {
@@ -792,7 +1001,7 @@ int main()
                 if (done) {
                     // Skip first word, which contains SPI command/address
                     for (i = 1; i <= BUFSIZE/sizeof(uint32); i++) {
-                        assert(((uint32 *) buf)[i] == deqCount);
+                        assert(((uint32 *) buf1)[i] == deqCount);
                         deqCount++;
                     }
                     newState = DEBUG_MEMTEST_DEPLETE;
@@ -806,7 +1015,7 @@ int main()
                 assert(bufq.used == 0);
 
                 // Test over-dequeueing
-                ret = DequeueBytes(buf, BUFSIZE, &done, 0);
+                ret = DequeueBytes(buf1, BUFSIZE, &done);
                 assert(ret == -ENODATA);
                 concurrencyTestType = CONCURRENCY_TEST_NORMAL;
                 newState = DEBUG_MEMTEST_CONCURRENCY;
@@ -826,9 +1035,9 @@ int main()
                 //
                 if (bufq.used < QUEUE_SIZE/2) {
                     for (i = 0; i < BUFSIZE/sizeof(uint32); i++) {
-                        ((uint32 *) buf)[i] = enqCount++;
+                        ((uint32 *) buf1)[i] = enqCount++;
                     }
-                    ret = EnqueueBytes(buf, BUFSIZE, &done, 0);
+                    ret = EnqueueBytes(buf1, BUFSIZE, &done);
                     assert(ret == 0);
                     newState = DEBUG_MEMTEST_CONCURRENCY_3;
                 } else {
@@ -848,7 +1057,7 @@ int main()
                 // Fill via timer interrupt, to test concurrency.
                 //
                 Timer_Programmable_WritePeriod(
-                    CLOCK_FREQ_MHZ * enqPeriodUs[concurrencyTestType]
+                    TIMER_CLOCK_FREQ_MHZ * enqPeriodUs[concurrencyTestType]
                     );
                 Timer_Programmable_ISR_StartEx(DebugMemtestIsr);
                 Timer_Programmable_Enable();
@@ -857,7 +1066,7 @@ int main()
 
             case DEBUG_MEMTEST_CONCURRENCY_5:
                 CyDelayUs(deqPeriodUs[concurrencyTestType]);
-                ret = DequeueBytes(buf2, BUFSIZE, &done, 0);
+                ret = DequeueBytes(buf2, BUFSIZE, &done);
                 if (ret == 0 || ret == -EAGAIN) {
                     newState = DEBUG_MEMTEST_CONCURRENCY_6;
                 }

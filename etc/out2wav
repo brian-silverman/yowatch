@@ -1,0 +1,9 @@
+awk \
+    '\
+    /State: DEBUG_MIC/{on=1;i=0;next;}\
+    /State: DEBUG_IDLE/{on=0}\
+    on{x[i++]=$0}\
+    END{l=length(x);for (j=0;j<l;j++) print(x[j])}\
+    '\
+    ~/Desktop/teraterm.log > foo
+sh txttowav.sh foo
