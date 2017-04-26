@@ -72,8 +72,19 @@ public class MainActivity extends BleServiceConnectionActivity {
 
         getSupportActionBar().setTitle(R.string.app_name);
 
-        onConnectionState();
         onBluetoothData(true);
+    }
+
+    protected void onResume()
+    {
+        super.onResume();
+        onConnectionState();
+    }
+
+    protected void onPause()
+    {
+        super.onPause();
+
     }
 
     @Override

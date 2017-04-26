@@ -24,6 +24,7 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             mBleService = ((BleService.LocalBinder) service).getService();
+            onConnectionState();
             onBleServiceConnected();
         }
 

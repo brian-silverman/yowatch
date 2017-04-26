@@ -8,10 +8,6 @@
 <files />
 <projects>
 <v>.\yowatch.cydsn\yowatch.cyprj</v>
-<v>.\Design01.cydsn\Design01.cyprj</v>
-<v>.\InterIcSound01.cydsn\InterIcSound01.cyprj</v>
-<v>.\Design04.cydsn\Design04.cyprj</v>
-<v>.\DMA_SPI_PSoC402.cydsn\DMA_SPI_PSoC402.cyprj</v>
 </projects>
 <workspace_id v="b2cadc3b-5132-43be-913d-9df3cdbba6c0" />
 <WriteAppVersionLastSavedWith v="4.0.0.432" />

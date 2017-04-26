@@ -53,6 +53,7 @@ public class BleService extends Service {
 
     private String mDeviceName;
     private String mDeviceAddress;
+    private int mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 
     private SharedPreferences mSettings;
 
@@ -76,7 +77,8 @@ public class BleService extends Service {
     private final BluetoothGattCallback mGattCallback = new BluetoothGattCallback() {
         @Override
         public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-            Log.i(TAG, "Dis/Connected to GATT server.");
+            Log.i(TAG, "Dis/Connected to GATT server. (" + newState + ")");
+            mConnectionState = newState;
             broadcastUpdate(ACTION_GATT_CONNECTION_CHANGE);
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
@@ -88,6 +90,7 @@ public class BleService extends Service {
 
         @Override
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
             for (String c : characteristicsWithNotifications) {
                 setCharacteristicNotification(
                         getCharacteristic(GattAttributes.SERVICE_SMARTWATCH, c), true);
@@ -104,6 +107,7 @@ public class BleService extends Service {
         public void onCharacteristicRead(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
+            Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             }
@@ -113,7 +117,7 @@ public class BleService extends Service {
         public void onCharacteristicWrite(BluetoothGatt gatt,
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
-            Log.d(TAG, "onCharacteristicWrite()");
+            Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
 /*
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
@@ -124,6 +128,7 @@ public class BleService extends Service {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
+            Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             mRxPackets++;
         }
@@ -166,10 +171,11 @@ public class BleService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-        if (isDisconnected()) {
+/*        if (isDisconnected()) {
             connect();
         }
-        return START_STICKY;
+  */
+return START_STICKY;
     }
 
     @Override
@@ -220,6 +226,8 @@ public class BleService extends Service {
             Log.w(TAG, "Bluetooth not initialized or no address specified.");
             return false;
         }
+        mConnectionState = BluetoothProfile.STATE_CONNECTING;
+        broadcastUpdate(ACTION_GATT_CONNECTION_CHANGE);
 
         // Previously connected device.  Try to reconnect.
         if (mBluetoothGatt != null &&
@@ -260,6 +268,8 @@ public class BleService extends Service {
             Log.w(TAG, "Bluetooth not initialized");
             return;
         }
+        mConnectionState = BluetoothProfile.STATE_DISCONNECTING;
+        broadcastUpdate(ACTION_GATT_CONNECTION_CHANGE);
         mBluetoothGatt.disconnect();
         mBluetoothGatt.close();
         mBluetoothGatt = null;
@@ -337,13 +347,14 @@ public class BleService extends Service {
     }
 
     public int getConnectionState() {
-        if (mBluetoothManager == null || mBluetoothGatt == null) {
+        return mConnectionState;
+/*        if (mBluetoothManager == null || mBluetoothGatt == null) {
             return BluetoothProfile.STATE_DISCONNECTED;
         }
 
         return mBluetoothManager.getConnectionState(
                 mBluetoothGatt.getDevice(), BluetoothProfile.GATT);
-    }
+*/    }
 
     public boolean isConnected() {
         return getConnectionState() == BluetoothProfile.STATE_CONNECTED;

@@ -130,27 +130,17 @@ void CustomEventHandler(uint32 event, void * eventParam)
                 uint8 * val = wrReqParam->handleValPair.value.val;
                 int len = wrReqParam->handleValPair.value.len;
 
-                char s[32];
-                sprintf(s, "%d, %d, %d, %d\r\n", attrHandle, val[0], len,
-                cyBle_customs[serviceIndex].\
-                    customServiceInfo[characteristicIndex].customServiceCharHandle);
-                UART_UartPutString(s);
-
                 if (attrHandle == cyBle_customs[serviceIndex].\
                     customServiceInfo[characteristicIndex].customServiceCharHandle)
                 {
-                    UART_UartPutString("Before callback\r\n");
                     writeCallbacks.table[i].callback(attrHandle, val, len);
-                    UART_UartPutString("After callback\r\n");
 
                     // Write the characteristic back to the database
                     BleWriteCharacteristic(attrHandle, val, len);
-                    UART_UartPutString("After write\r\n");
                 }
             }
 
             CyBle_GattsWriteRsp(cyBle_connHandle);
-            UART_UartPutString("After Rsp\r\n");
             break;
 
         case CYBLE_EVT_GATTS_XCNHG_MTU_REQ:

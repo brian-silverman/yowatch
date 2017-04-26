@@ -18,6 +18,7 @@ package com.readysetstem.yophone;
 
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.graphics.Color;
+import android.os.Environment;
 import android.support.v7.app.ActionBar;
 import android.os.Bundle;
 import android.util.Log;
@@ -26,6 +27,11 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import java.io.ByteArrayOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -40,6 +46,10 @@ public class DebugActivity extends BleServiceConnectionActivity {
     private ActionBar mActionBar;
     private TextView mTvSpeedtestKbps;
     private ImageView mIvSpeedtestPlay;
+    private ImageView mIvMicPlay;
+    private ImageView mIvMicStop;
+    private ImageView mIvMicRecord;
+    ByteArrayOutputStream mMicRecording;
     private int mLen;
     private int mSpeedtestPackets;
     private long mStartTime;
@@ -54,6 +64,9 @@ public class DebugActivity extends BleServiceConnectionActivity {
         // Sets up UI references.
         mTvSpeedtestKbps = (TextView) findViewById(R.id.speedtest_kbps);
         mIvSpeedtestPlay = (ImageView) findViewById(R.id.speedtest_play);
+        mIvMicPlay = (ImageView) findViewById(R.id.mic_play);
+        mIvMicStop = (ImageView) findViewById(R.id.mic_stop);
+        mIvMicRecord = (ImageView) findViewById(R.id.mic_record);
 
         mActionBar = getSupportActionBar();
         mActionBar.setTitle(R.string.debug_title);
@@ -97,6 +110,13 @@ public class DebugActivity extends BleServiceConnectionActivity {
                             mIvSpeedtestPlay.setEnabled(true);
                             mIvSpeedtestPlay.setColorFilter(null);
                             break;
+                        case 5:
+                            try {
+                                mMicRecording.write(Arrays.copyOfRange(data, 4, data.length));
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            break;
                     }
                 }
             }
@@ -132,4 +152,37 @@ public class DebugActivity extends BleServiceConnectionActivity {
         mIvSpeedtestPlay.setEnabled(false);
         mIvSpeedtestPlay.setColorFilter(Color.argb(150,200,200,200));
     }
+
+    public void onClickMicRecord(View view) {
+        // TODO Verify packets as they come in (incrementing uint32)
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        // TODO Do not use hardcoded constants
+        characteristic.setValue(3, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        mBleService.writeCharacteristic(characteristic);
+
+        mMicRecording = new ByteArrayOutputStream();
+        mIvMicRecord.setEnabled(false);
+        mIvMicRecord.setColorFilter(Color.argb(150,200,200,200));
+    }
+    
+    public void onClickMicStop(View view) {
+        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/yourfilename";
+        try (OutputStream outputStream = new FileOutputStream(name)) {
+            mMicRecording.writeTo(outputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // TODO Verify packets as they come in (incrementing uint32)
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        // TODO Do not use hardcoded constants
+        characteristic.setValue(4, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        mBleService.writeCharacteristic(characteristic);
+
+        mIvMicRecord.setEnabled(true);
+        mIvMicRecord.setColorFilter(null);
+    }
+
 }

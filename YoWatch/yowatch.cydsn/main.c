@@ -67,7 +67,7 @@
 // Speedtest buffer
 // TODO: merge with I2S DMA buffers
 //
-uint8 buffer[MAX_MTU_SIZE];
+uint8 buffer[MAX_MTU_SIZE+4];
 int speedTestPackets;
 
 int deviceConnected = 0;
@@ -306,6 +306,11 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
                 bleSelectedNextState = DEBUG_SPEEDTEST;
             }
             break;
+        case 3:
+            if (state == DEBUG_IDLE) {
+                bleSelectedNextState = DEBUG_MIC;
+            }
+            break;
         default:
             bleSelectedNextState = NONE;
             break;
@@ -487,6 +492,8 @@ int EnqueueBytes(uint8 *buf, uint32 bytes, int * done)
 {
     struct QUEUED_DESCRIPTOR qd;
 
+    if (bufq.free < bytes) return -ENOSPC;
+
     if (done != NULL) {
         *done = 0;
     }
@@ -502,7 +509,6 @@ int EnqueueBytes(uint8 *buf, uint32 bytes, int * done)
 int EnqueueBytesNoLock(uint8 *buf, uint32 bytes, int * done)
 {
     uint32 tail;
-    int isSpaceAvailable;
     uint8 interruptState;
 
     // Back to back DMAs can clobber bits at the end of the first DMA.
@@ -510,22 +516,15 @@ int EnqueueBytesNoLock(uint8 *buf, uint32 bytes, int * done)
 
     interruptState = CyEnterCriticalSection();
 
-    isSpaceAvailable = bufq.free >= bytes;
-    if (isSpaceAvailable) {
-        assert(bufq.tail == bufq.pendingTail);
-        tail = bufq.tail;
-        bufq.pendingTail = (bufq.tail + bytes) % QUEUE_SIZE;
-        assert(bufq.free >= bytes);
-        bufq.free -= bytes;
-        bufq.pendingTailBytes = bytes;
-    }
+    assert(bufq.free >= bytes);
+    assert(bufq.tail == bufq.pendingTail);
+    tail = bufq.tail;
+    bufq.pendingTail = (bufq.tail + bytes) % QUEUE_SIZE;
+    assert(bufq.free >= bytes);
+    bufq.free -= bytes;
+    bufq.pendingTailBytes = bytes;
 
     CyExitCriticalSection(interruptState);
-
-    if (! isSpaceAvailable) {
-        UnlockSpiDma();
-        return -ENOSPC;
-    }
 
     if (done == NULL) {
         done = &enqueueDone;
@@ -588,6 +587,8 @@ int DequeueBytes(uint8 *buf, int bytes, int * done)
 {
     struct QUEUED_DESCRIPTOR qd;
 
+    if (bufq.used < bytes) return -ENODATA;
+
     if (done != NULL) {
         *done = 0;
     }
@@ -603,7 +604,6 @@ int DequeueBytes(uint8 *buf, int bytes, int * done)
 int DequeueBytesNoLock(uint8 *buf, int bytes, int * done)
 {
     uint32 head;
-    int isDataAvailable;
     uint8 interruptState;
 
     // Back to back DMAs can clobber bits at the end of the first DMA.
@@ -611,22 +611,15 @@ int DequeueBytesNoLock(uint8 *buf, int bytes, int * done)
 
     interruptState = CyEnterCriticalSection();
 
-    isDataAvailable = bufq.used >= bytes;
-    if (isDataAvailable) {
-        assert(bufq.head == bufq.pendingHead);
-        head = bufq.head;
-        bufq.pendingHead = (bufq.head + bytes) % QUEUE_SIZE;
-        assert(bufq.used >= bytes);
-        bufq.used -= bytes;
-        bufq.pendingHeadBytes = bytes;
-    }
+    assert(bufq.used >= bytes);
+    assert(bufq.head == bufq.pendingHead);
+    head = bufq.head;
+    bufq.pendingHead = (bufq.head + bytes) % QUEUE_SIZE;
+    assert(bufq.used >= bytes);
+    bufq.used -= bytes;
+    bufq.pendingHeadBytes = bytes;
 
     CyExitCriticalSection(interruptState);
-
-    if (! isDataAvailable) {
-        UnlockSpiDma();
-        return -ENODATA;
-    }
 
     if (done == NULL) {
         done = &dequeueDone;
@@ -749,6 +742,15 @@ void I2sStopDma()
     stopI2sDma = 1;
 }
 
+enum STATE GetBleStateIfNew(enum STATE state)
+{
+    if (bleSelectedNextState != NONE) {
+        state = bleSelectedNextState;
+    }
+    bleSelectedNextState = NONE;
+    return state;
+}
+
 //
 // Main entry point:
 //      - Init modules
@@ -796,7 +798,6 @@ int main()
 
     UART_UartPutString("--- STARTUP ---\r\n");
 
-state = DEBUG_MIC;
     for (;;) {
         CyBle_ProcessEvents();
 
@@ -809,9 +810,7 @@ state = DEBUG_MIC;
                 break;
 
             case SLEEP:
-                if (bleSelectedNextState != NONE) {
-                    newState = bleSelectedNextState;
-                }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case TIME:
@@ -836,9 +835,7 @@ state = DEBUG_MIC;
                 break;
 
             case DEBUG_IDLE:
-                if (bleSelectedNextState != NONE) {
-                    newState = bleSelectedNextState;
-                }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_SPEEDTEST:
@@ -858,6 +855,7 @@ state = DEBUG_MIC;
                 } else {
                     newState = DEBUG_SPEEDTEST_2;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_SPEEDTEST_2:
@@ -871,6 +869,7 @@ state = DEBUG_MIC;
                         newState = DEBUG_IDLE;
                     }
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
 
@@ -879,8 +878,10 @@ state = DEBUG_MIC;
                 micBytes = 0;
                 I2sStartDma();
                 newState = DEBUG_MIC_2;
+                newState = GetBleStateIfNew(newState);
                 break;
 
+#if 0
             case DEBUG_MIC_2:
                 if (bufq.used >= 100000) {
                     I2sStopDma();
@@ -907,35 +908,38 @@ state = DEBUG_MIC;
                     newState = DEBUG_MIC_3;
                 }
                 break;
-#if 0
+#else
             case DEBUG_MIC_2:
-                ret = DequeueBytes(buffer, BUFSIZE, &done);
+                ret = DequeueBytes(buffer, 496, &done);
                 if (ret != -ENODATA) {
                     newState = DEBUG_MIC_3;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MIC_3:
                 if (done) {
                     newState = DEBUG_MIC_4;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MIC_4:
-                micBytes += BUFSIZE;
-#if 1
-                for (i = 0; i < BUFSIZE; i += 2) {
-                    sprintf(s, "%04X\r\n", *((uint16 *) &buffer[i]));
-                    UART_UartPutString(s);
+                if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+                    buffer[0] = 5;
+                    ret = BleSendNotification(
+                        CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
+                    if (ret == 0) {
+                        micBytes += 500;
+                        newState = DEBUG_MIC_2;
+                    }
                 }
-#endif
                 //if (micBytes > 200000) {
                 if (micBytes > 100000) {
                     I2sStopDma();
                     newState = DEBUG_IDLE;
-                } else {
-                    newState = DEBUG_MIC_2;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 #endif
 
@@ -947,6 +951,7 @@ state = DEBUG_MIC;
                 BufQueueInit();
                 enqCount = 0;
                 newState = DEBUG_MEMTEST_FILL_2;
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_FILL_2:
@@ -960,12 +965,14 @@ state = DEBUG_MIC;
                 } else {
                     newState = DEBUG_MEMTEST_FILL_4;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_FILL_3:
                 if (done) {
                     newState = DEBUG_MEMTEST_FILL_2;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_FILL_4:
@@ -982,6 +989,7 @@ state = DEBUG_MIC;
                 assert(ret == -ENOSPC);
                 deqCount = 0;
                 newState = DEBUG_MEMTEST_DEPLETE;
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_DEPLETE:
@@ -995,6 +1003,7 @@ state = DEBUG_MIC;
                 } else {
                     newState = DEBUG_MEMTEST_DEPLETE_3;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_DEPLETE_2:
@@ -1006,6 +1015,7 @@ state = DEBUG_MIC;
                     }
                     newState = DEBUG_MEMTEST_DEPLETE;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_DEPLETE_3:
@@ -1019,6 +1029,7 @@ state = DEBUG_MIC;
                 assert(ret == -ENODATA);
                 concurrencyTestType = CONCURRENCY_TEST_NORMAL;
                 newState = DEBUG_MEMTEST_CONCURRENCY;
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY:
@@ -1027,6 +1038,7 @@ state = DEBUG_MIC;
                 enqCount = 0;
                 deqCount = 0;
                 newState = DEBUG_MEMTEST_CONCURRENCY_2;
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY_2:
@@ -1043,12 +1055,14 @@ state = DEBUG_MIC;
                 } else {
                     newState = DEBUG_MEMTEST_CONCURRENCY_4;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY_3:
                 if (done) {
                     newState = DEBUG_MEMTEST_CONCURRENCY_2;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY_4:
@@ -1062,6 +1076,7 @@ state = DEBUG_MIC;
                 Timer_Programmable_ISR_StartEx(DebugMemtestIsr);
                 Timer_Programmable_Enable();
                 newState = DEBUG_MEMTEST_CONCURRENCY_5;
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY_5:
@@ -1070,6 +1085,7 @@ state = DEBUG_MIC;
                 if (ret == 0 || ret == -EAGAIN) {
                     newState = DEBUG_MEMTEST_CONCURRENCY_6;
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY_6:
@@ -1090,13 +1106,13 @@ state = DEBUG_MIC;
                         }
                     }
                 }
+                newState = GetBleStateIfNew(newState);
                 break;
 
             default:
                 break;
         }
 
-        bleSelectedNextState = NONE;
         prevState = state;
         if (newState != NONE) {
             state = newState;

@@ -31,20 +31,27 @@
 
             <ImageView style="@style/filled_height_icon"
                 android:id="@+id/mic_play"
-                app:srcCompat="@drawable/ic_play" />
+                app:srcCompat="@drawable/ic_play"
+                android:onClick="onClickMicPlay"
+                />
 
             <View style="@style/vertical_bar" />
 
             <ImageView style="@style/filled_height_icon"
                 android:id="@+id/mic_stop"
-                app:srcCompat="@drawable/ic_stop" />
+                app:srcCompat="@drawable/ic_stop"
+                android:onClick="onClickMicStop"
+            />
 
             <View style="@style/vertical_bar" />
 
             <ImageView style="@style/filled_height_icon"
                 android:id="@+id/mic_record"
                 android:layout_margin="8dp"
-                app:srcCompat="@drawable/ic_record" />
+                app:srcCompat="@drawable/ic_record"
+                android:onClick="onClickMicRecord"
+            />
+
 
         </LinearLayout>
 
