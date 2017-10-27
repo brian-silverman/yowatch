@@ -1,4 +1,6 @@
-TMPDIR=`mktemp -d /tmp/$0.XXXXXXXXX`
+cd "$(dirname "$0")"
+
+TMPDIR=`mktemp -d /tmp/diptrace2oshpark.XXXXXXXXX`
 
 # General Layers
 cp BoardOutline.gbr $TMPDIR/yowatch.GKO

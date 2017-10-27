@@ -1,0 +1,43 @@
+Gerber export notes:
+
+- Before export, verify:
+    - PSoC (U2) ground pad:
+        - Custom paste mask shrink: 40 mils
+    - Y2 XTAL:
+        - Custom paste mask shrink: 2 mils
+    - BLE Antenna, all pads:
+        - Disable all paste/mask
+- Diptrace export for oshpark:
+    - http://cryoarchive.net/tutorials/diptrace-tutorials/diptrace-design-your-pcb-for-oshpark-com/ 
+    - Setup design rules as suggested
+    - File->Export->Gerber...
+        - Before export, settings should be:
+            - Solder mask swell: 2 mils
+            - Paste mask shrink: 0 mils
+        - Export all
+            - Be sure to be in the gerbers directory when saving
+            - Use default file names
+            - Must confirm each file, and will need to confirm overwrite if file exists
+    - File->Export->NC/Drill...
+        - Export all
+            - "One or several tools have not been specified...?".  Choose yes.
+            - Be sure to be in the gerbers directory when saving
+            - Use default file names
+            - Must confirm each file, and will need to confirm overwrite if file exists
+    - From command line, run:
+      sh gerbers/diptrace2oshpark.sh 
+          which (changes file names as follows (recommended by oshpark) and
+          creates zip file yowatch.zip):
+            yowatch.G2L
+            yowatch.G3L
+            yowatch.GBL
+            yowatch.GBO
+            yowatch.GBS
+            yowatch.GKO
+            yowatch.GTL
+            yowatch.GTO
+            yowatch.GTS
+            yowatch.XLN
+    - For PCB via oshpark.com, upload yowatch.zip
+    - For stencil via oshstencils.com, upload TopPaste.gbr
+

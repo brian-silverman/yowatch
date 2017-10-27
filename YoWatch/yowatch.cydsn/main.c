@@ -59,9 +59,11 @@
  * published by the Free Software Foundation.
  */
 #include <project.h>
-#include <BLEApplications.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
+#include "BLEApplications.h"
+#include "debug_locally.h"
 
 //
 // Speedtest buffer
@@ -194,6 +196,7 @@ enum STATE {
     RUN_CMD,
     RESULT,
     CUSTOM_CMD,
+    DEBUG_LOCALLY,
     DEBUG_IDLE,
     DEBUG_SPEEDTEST,
     DEBUG_SPEEDTEST_2,
@@ -234,6 +237,7 @@ void PrintState(
         PRINT_CASE(RUN_CMD);
         PRINT_CASE(RESULT);
         PRINT_CASE(CUSTOM_CMD);
+        PRINT_CASE(DEBUG_LOCALLY);
         PRINT_CASE(DEBUG_IDLE);
         PRINT_CASE(DEBUG_SPEEDTEST);
         PRINT_CASE(DEBUG_SPEEDTEST_2);
@@ -769,7 +773,7 @@ int main()
     int micBytes;
 
     prevState = OFF;
-    state = SLEEP;
+    state = DEBUG_LOCALLY;
 
     CyDmaEnable();
     CyIntEnable(CYDMA_INTR_NUMBER);
@@ -835,6 +839,11 @@ int main()
                 break;
 
             case DEBUG_IDLE:
+                newState = GetBleStateIfNew(newState);
+                break;
+
+            case DEBUG_LOCALLY:
+                if (DebugLocallySM()) newState = SLEEP;
                 newState = GetBleStateIfNew(newState);
                 break;
 
