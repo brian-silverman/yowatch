@@ -223,7 +223,7 @@ void PrintState(
     enum STATE state
     )
 {
-    #define PRINT_CASE(state) case state: UART_UartPutString("State: " #state "\r\n"); break
+    #define PRINT_CASE(state) case state: UART_1_PutString("State: " #state "\r\n"); break
     #define NO_PRINT_CASE(state) case state: break
 
     switch (state) {
@@ -259,7 +259,7 @@ void PrintState(
         NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_5);
         NO_PRINT_CASE(DEBUG_MEMTEST_CONCURRENCY_6);
         default:
-            UART_UartPutString("State: UNKNOWN!\r\n");
+            UART_1_PutString("State: UNKNOWN!\r\n");
             break;
     }
 }
@@ -274,7 +274,7 @@ void _assert(int assertion, char * assertionStr, int line, char * file)
     char s[100];
     if (! assertion) {
         snprintf(s, sizeof(s), "ASSERT(%s) at line %d, %s.\r\n", assertionStr, line, file);
-        UART_UartPutString(s);
+        UART_1_PutString(s);
         CyHalt(0);
     }
 }
@@ -290,7 +290,7 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
 {
     char s[32];
     sprintf(s, "%d, %d, %d\r\n", *data, len, state);
-    UART_UartPutString(s);
+    UART_1_PutString(s);
 
     // TODO Fix hardcoded constants
     switch (*data) {
@@ -301,7 +301,7 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
             if (state == SLEEP) {
                 bleSelectedNextState = DEBUG_IDLE;
             }
-            UART_UartPutString("Go to DEBUG_IDLE\r\n");
+            UART_1_PutString("Go to DEBUG_IDLE\r\n");
             PrintState(state);
             break;
         case 2: // Go to debug speedtest
@@ -794,13 +794,13 @@ int main()
     I2S_1_Start();
     Timer_1_Start();
     SPI_1_Start();
-    UART_Start();
+    UART_1_Start();
 
     Timer_Programmable_Init();
 
     BufQueueInit();
 
-    UART_UartPutString("--- STARTUP ---\r\n");
+    UART_1_PutString("--- STARTUP ---\r\n");
 
     for (;;) {
         CyBle_ProcessEvents();
@@ -912,7 +912,7 @@ int main()
                 if (done) {
                     for (i = 4; i < BUFSIZE + 4; i += 2) {
                         sprintf(s, "%04X\r\n", *((uint16 *) &buffer[i]));
-                        UART_UartPutString(s);
+                        UART_1_PutString(s);
                     }
                     newState = DEBUG_MIC_3;
                 }
@@ -956,7 +956,7 @@ int main()
                 //
                 // Enqueue until full.
                 //
-                UART_UartPutString("MEMTEST: Filling queue...\r\n");
+                UART_1_PutString("MEMTEST: Filling queue...\r\n");
                 BufQueueInit();
                 enqCount = 0;
                 newState = DEBUG_MEMTEST_FILL_2;
@@ -985,10 +985,10 @@ int main()
                 break;
 
             case DEBUG_MEMTEST_FILL_4:
-                UART_UartPutString("MEMTEST: Queue filled.\r\n");
+                UART_1_PutString("MEMTEST: Queue filled.\r\n");
                 sprintf(s, "MEMTEST: %d words\r\n", enqCount);
-                UART_UartPutString(s);
-                UART_UartPutString("MEMTEST: Dequeueing...\r\n");
+                UART_1_PutString(s);
+                UART_1_PutString("MEMTEST: Dequeueing...\r\n");
 
                 assert(bufq.free == 0);
                 assert(bufq.used == QUEUE_SIZE);
@@ -1028,7 +1028,7 @@ int main()
                 break;
 
             case DEBUG_MEMTEST_DEPLETE_3:
-                UART_UartPutString("MEMTEST: Queue emptied.\r\n");
+                UART_1_PutString("MEMTEST: Queue emptied.\r\n");
 
                 assert(bufq.free == QUEUE_SIZE);
                 assert(bufq.used == 0);
@@ -1042,7 +1042,7 @@ int main()
                 break;
 
             case DEBUG_MEMTEST_CONCURRENCY:
-                UART_UartPutString("MEMTEST: Concurrency test.  Half filling queue...\r\n");
+                UART_1_PutString("MEMTEST: Concurrency test.  Half filling queue...\r\n");
                 BufQueueInit();
                 enqCount = 0;
                 deqCount = 0;
