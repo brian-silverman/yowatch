@@ -773,7 +773,7 @@ int main()
     int micBytes;
 
     prevState = OFF;
-    state = DEBUG_LOCALLY;
+    state = DEBUG_MIC;
 
     CyDmaEnable();
     CyIntEnable(CYDMA_INTR_NUMBER);
@@ -890,7 +890,7 @@ int main()
                 newState = GetBleStateIfNew(newState);
                 break;
 
-#if 0
+#if 1
             case DEBUG_MIC_2:
                 if (bufq.used >= 100000) {
                     I2sStopDma();
