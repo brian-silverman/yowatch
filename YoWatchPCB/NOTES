@@ -46,3 +46,7 @@ TODO:
     - MCP1661 - review for PCB routing recommendations (Cin/out directly next to in/out pins,
       recommended trace width, etc)
     - Change 50ohm resistors to 0603
+    - Connectorize programming connector: use small pitch connector, and move
+      up under battery.  It could pssibly even stay connectorised while in the
+      case, if attached with a pigtail and laid flat.  Also, programming
+      connector could be shifted slightly to lower right corner
