@@ -1,4 +1,4 @@
-Gerber export notes:
+GERBER EXPORT NOTES:
 
 - Before export, verify:
     - PSoC (U2) ground pad:
@@ -42,6 +42,77 @@ Gerber export notes:
     - For stencil via oshstencils.com, upload TopPaste.gbr
 
 
+BUILD INSTRUCTIONS:
+
+There are no special requirements for populating/soldering the board - hot-air
+rework, hotplate or oven, and hand soldering can all be used and/or combined.
+However, because many of the parts are fine pitch, DIY soldering of the board
+all at once can be error prone and difficult to debug.  The following
+procedures help alleviate that issue by suggesting a step by step approach.
+After soldering parts, the POST (Power On Self Test) will test if the parts
+have been soldered on properly.  
+
+- The following parts have SMD pads under the package that require hot-air
+  rework, hotplate or oven soldering.  Easiest to do them together in one pass,
+  as it is difficult to apply solder paste via the stencil when there are
+  already parts on the board.
+    - U1 - 3.3V regulator
+    - U2 - PSoC
+    - U4 - I2S microphone
+    - U5 - Accelerometer (future)
+    - Y1 - 24MHz
+    - Y2 - 32kHz
+- Optional parts that MAY be easier to populate with the above parts (YMMV):
+    - J5 - OLED FFC cable connector
+- Program PSoC via Cypress MiniProg3:
+    - Attach J7 right angle five pin header 
+    - Attach J3 UART pigtails
+    - (Optional) Attach J6 Power pigtails
+    - Attach 3.3V power to J6 (or can be clipped to VTARG/GND on J7 programmer
+      header).  REQUIRED FOR PROGRAMMING!
+    - With PSoC populated, test program download.  Download does appear to work
+      reliably without any caps or crystals.  Program does require crystals to
+      boot (true?).  May not boot without caps if programmer cable is not
+      connected.
+    - Populate Crystals (if not already done above) and verify programming.
+    - Reset board by shorting XRES to GND on J7 programming cable.
+    - POST should run and display on UART at 115200.  Most tests should fail.
+    - Add PSoC bypass caps, and 32kHz crystal's caps (optional)
+    - POST should run and display on UART without programmer connected.
+- Populate I2S microphone  and cap (if not already done above) and verify via
+  POST
+- Populate Accelerometer and components (if not already done above) and verify
+  via POST
+- 3.3V regulator test:
+    - Populate:
+        - U1 3.3V reg (if not already done above)
+        - R1/6, C1/2/3
+        - J4 (batt conn)
+    - Supply 2.5 to 4.2V via batt conn.
+    - Verify 3.3V out
+- Populate U3 RAM and verify via POST
+- (Optional) Populate U8 RAM and verify via POST
+- OLED display:
+    - Populate U7 12V reg and external components - manually verify 12V
+    - Populate OLED display connector and external components
+    - Connect OLED display
+    - Verify POST on display
+- Vib:
+    - Populate vib connector and components
+    - Verify vib during POST
+- Other
+    - Populate Buttons, and verify via debug
+    - Verify BLE via Android YoPhone app
+    - Verify current via R6
+    - Battery:
+        - Populate battery and charging connectors
+        - Verify running on battery
+            - POST should display valid battery voltage
+            - Verify battery charging properly
+    
+
 TODO:
     - MCP1661 - review for PCB routing recommendations (Cin/out directly next to in/out pins,
       recommended trace width, etc)
+
+
