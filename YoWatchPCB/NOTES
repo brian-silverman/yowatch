@@ -53,9 +53,9 @@ After soldering parts, the POST (Power On Self Test) will test if the parts
 have been soldered on properly.  
 
 - The following parts have SMD pads under the package that require hot-air
-  rework, hotplate or oven soldering.  Easiest to do them together in one pass,
-  as it is difficult to apply solder paste via the stencil when there are
-  already parts on the board.
+  rework, hotplate or oven soldering.  It may be easiest to do them together in
+  one pass, as it is difficult to apply solder paste via the stencil when there
+  are already parts on the board.
     - U1 - 3.3V regulator
     - U2 - PSoC
     - U4 - I2S microphone
@@ -74,7 +74,7 @@ have been soldered on properly.
       reliably without any caps or crystals.  Program does require crystals to
       boot (true?).  May not boot without caps if programmer cable is not
       connected.
-    - Populate Crystals (if not already done above) and verify programming.
+    - Populate crystals (if not already done above) and verify programming.
     - Reset board by shorting XRES to GND on J7 programming cable.
     - POST should run and display on UART at 115200.  Most tests should fail.
     - Add PSoC bypass caps, and 32kHz crystal's caps (optional)

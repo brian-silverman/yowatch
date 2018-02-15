@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include "printf.h"
 
 unsigned char cmds[][2] = {
     {0xFD,0},
@@ -130,27 +131,25 @@ int DebugLocallySM(
 {
     static int i = 0;
     int j;
-    char s[32];
     if (i % 100000 == 0) {
-        sprintf(s, "%d\r\n", i);
-        UART_1_PutString(s);
+        xprintf("%d\r\n", i);
     }
     i++;
     if (i % 1000000 == 200000) {
-        UART_1_PutString("Configure...\r\n");
+        xprintf("Configure...\r\n");
         SPI_1_SpiSetActiveSlaveSelect(SPI_1_SPI_SLAVE_SELECT2);
         for (j = 0; j < sizeof(cmds)/sizeof(cmds[0]); j++) {
             OLED_DAT_CMD_Write(cmds[j][1]);
             SPI_1_SpiUartWriteTxData(cmds[j][0]);
             CyDelayUs(5);
         }
-        UART_1_PutString("Write square...\r\n");
+        xprintf("Write square...\r\n");
         for (j = 0; j < sizeof(square)/sizeof(square[0]); j++) {
             OLED_DAT_CMD_Write(square[j][1]);
             SPI_1_SpiUartWriteTxData(square[j][0]);
             CyDelayUs(5);
         }
-        UART_1_PutString("done...\r\n");
+        xprintf("done...\r\n");
     }
     return 0;
 }
