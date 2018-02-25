@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#define printf ERROR
+
 #define MAX_FORMAT_BUFFER_SIZE (128)
 extern uint8 formatBuffer[MAX_FORMAT_BUFFER_SIZE];
 #define xprintf(...) \

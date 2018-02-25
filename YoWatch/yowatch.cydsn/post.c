@@ -152,7 +152,7 @@ void Post(
     AccelerometerPost();
     VibPost();
 
-    xprintf("Total Memory: %dk\r\n", SerialRamTotalSize()/1024);
+    xprintf("Total Memory: %dk\r\n", (int) (SerialRamTotalSize()/1024));
 
     TestSuite();
 }

@@ -97,6 +97,7 @@ have been soldered on properly.
     - Populate OLED display connector and external components
     - Connect OLED display
     - Verify POST on display
+    - Verify Power draw: TBD
 - Vib:
     - Populate vib connector and components
     - Verify vib during POST

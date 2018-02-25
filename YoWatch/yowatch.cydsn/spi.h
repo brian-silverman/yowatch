@@ -8,8 +8,21 @@
 //
 // Flags
 //
-#define SPI_DONE_CALLBACK (1 << 0)
+#define SPI_DONE_CALLBACK       (1 << 0)
+#define SPI_TX_BYTE_REPEATED    (1 << 1)
+#define SPI_SHORT_AND_SWEET     (1 << 2)
 
+//
+// There are only 2 ping-ponged audio buffers, before heading to Serial RAM.
+// Therefore the SPI bus can not be hogged for too long, or audio packes would
+// be dropped.
+//
+// Audio, at 16-bit 16kHz, needs to write a 512 bytes packet every (512 bytes /
+// (2 bytes * 16kHz)) = 16msecs.  To be safe, we restrict continuous bus usage
+// to roughly half of that - at 8Mbps, that is (8Mbps * 8msec = 64kbits =
+// 8kbytes).
+//
+#define MAX_SPI_BUS_HOGGING_BYTES 8000
 
 //
 // Slave selects

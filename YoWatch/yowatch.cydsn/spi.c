@@ -181,7 +181,8 @@ void SpiRxDmaIsr(void)
 // @param recvBuf       Buffer of bytes to receive.  If present, this is a
 //                      receive transaction.  If NULL, this is a transmit
 //                      transaction.
-// @param bytes         Number of bytes to send/recv
+// @param bytes         Number of bytes to send/recv.  Must be <=
+//                      MAX_SPI_BUS_HOGGING_BYTES
 // @param ss            Slave select number.  One of:
 //                      SPI_SS_MEM_0
 //                      SPI_SS_MEM_1
@@ -190,7 +191,10 @@ void SpiRxDmaIsr(void)
 // @param doneArg       Arg to pass to doneCallback
 // @param flags         Optional ORable flags.
 //                      SPI_DONE_CALLBACK: Use pre-defined callback function
-//                      that just sets single (int *) argument to 1.
+//                      that just sets single (int *) argument to 1.  If used,
+//                      then doneCallback is unused.
+//                      SPI_TX_BYTE_REPEATED: Only the first byte of sendBuf is
+//                      used, and it is sent out repeatedly for /bytes/ bytes.
 //
 void SpiXferUnlocked(
     uint8 * sendBuf,
@@ -202,12 +206,30 @@ void SpiXferUnlocked(
     uint32 flags
     )
 {
+    assert(bytes <= MAX_SPI_BUS_HOGGING_BYTES);
+
+    if (flags & SPI_SHORT_AND_SWEET) {
+        SPI_1_SpiUartPutArray(sendBuf, bytes);
+        while (SPI_1_SpiUartGetTxBufferSize() > 0);
+        UnlockSpiBus();
+        return;
+    }
+
+    if (flags & SPI_DONE_CALLBACK) {
+        doneCallback = SpiDoneCallback;
+        assert(doneArg != NULL);
+        *((int *) doneArg) = 0;
+    }
+
     spiDoneCallback = doneCallback;
     spiDoneArg = doneArg;
 
     SpiRxDma_ChDisable();
     SpiTxDma_ChDisable();
 
+    SpiTxDma_SetAddressIncrement(
+        0, flags & SPI_TX_BYTE_REPEATED ? CYDMA_INC_NONE : CYDMA_INC_SRC_ADDR
+        );
     SpiTxDma_SetSrcAddress(0, sendBuf);
     SpiTxDma_SetDstAddress(0, (void *) SPI_1_TX_FIFO_WR_PTR);
     SpiTxDma_SetNumDataElements(0, bytes);

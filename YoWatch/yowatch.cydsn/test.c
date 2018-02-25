@@ -17,6 +17,8 @@
 #include "serialram.h"
 #include "queue.h"
 #include "i2s.h"
+#include "oled.h"
+#include "fonts.h"
 
 #define TEST_VERBOSE 0
 
@@ -33,6 +35,12 @@ int fail = 0;
         } else { \
             pass++; \
         } \
+    }
+
+#define MTEST(func) \
+    { \
+        xprintf("\aMANU: %s\r\n", #func); \
+        func; \
     }
 
 #define TEST_INIT \
@@ -343,9 +351,9 @@ CY_ISR(DebugMemtestIsr)
         enqCount -= SERIAL_RAM_BUFSIZE/sizeof(uint32);
     }
     if (BufQueueFree() > prevFree) {
-        enqPeriodUs -= 50;
+        enqPeriodUs -= 100;
     } else if (BufQueueFree() < prevFree) {
-        enqPeriodUs += 50;
+        enqPeriodUs += 100;
     }
     prevFree = BufQueueFree();
 
@@ -524,7 +532,7 @@ int TestQueueConcurrency()
     Timer_Programmable_Enable();
 
     while (deqCount < 30000) {
-        TEST_ASSERT(DequeueBytesBlocking(pbuf2, SERIAL_RAM_BUFSIZE) == 0);
+        TEST_ASSERT_INT_EQ(DequeueBytesBlocking(pbuf2, SERIAL_RAM_BUFSIZE), 0);
         for (i = 0; i < SERIAL_RAM_BUFSIZE/sizeof(uint32); i++) {
             TEST_ASSERT_INT_EQ(((uint32 *) pbuf2)[i], deqCount);
             deqCount++;
@@ -558,6 +566,46 @@ int TestMicDump()
     return 0;
 }
 
+#define TEST_DISPLAY_DELAY      (2000)
+void TestDisplayRect()
+{
+    int i;
+    DisplayErase();
+    for (i = 0; i < 16; i++) {
+        DisplayRect(8*i, 0, 8, 96, 1 << i);
+    }
+    CyDelay(TEST_DISPLAY_DELAY);
+}
+
+void TestDisplayChar()
+{
+    int i;
+    DisplayErase();
+#if 0
+    MTEST(TestDisplayUpperLeftCorner());
+    MTEST(TestDisplayFill(TEST_FILL_COLOR_RED));
+    MTEST(TestDisplayFill(TEST_FILL_COLOR_BLUE));
+    MTEST(TestDisplayFill(TEST_FILL_COLOR_GREEN));
+    MTEST(TestDisplayHline());
+    MTEST(TestDisplayVline());
+    MTEST(TestDisplayLine());
+    MTEST(TestDisplayImage());
+    MTEST(TestDisplayText());
+    MTEST(TestDisplayImageTiling());
+    MTEST(TestDisplayScrollUp());
+    MTEST(TestDisplayScrollDown());
+    MTEST(TestDisplayRect());
+#endif
+    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X8, 0, 0);
+    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
+    DisplayText("abcdefghijklmnop |\/?", 0, 30, FONT_5X8, 0, 0);
+    DisplayText("qrstuvwxyz ^&*() <>,.", 0, 40, FONT_5X8, 0, 0);
+    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 50, FONT_5X8_FIXED, 0, 0);
+    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 60, FONT_5X8_FIXED, 0, 0);
+    DisplayText("abcdefghijklmnop |\/?", 0, 70, FONT_5X8_FIXED, 0, 0);
+    DisplayText("qrstuvwxyz ^&*() <>,.", 0, 80, FONT_5X8_FIXED, 0, 0);
+    CyDelay(TEST_DISPLAY_DELAY);
+}
 
 /////////////////////////////////////////////////////////////////////
 //
@@ -576,6 +624,7 @@ void TestSuite()
     // Test TX after RX, as it was previously failing
     TEST(TestSpiXferInterrupts(TEST_SPI_XFER_TX, 1));
 
+#if 0
     TEST(TestSpiXferTooMany());
 
     TEST(TestSpiXferWriteReadMem(TEST_SPI_XFER_UNLOCKED));
@@ -590,10 +639,9 @@ void TestSuite()
     TEST(TestQueueEnqueueDequeueVariableSizes());
     TEST(TestQueueFillThenEmpty());
     TEST(TestQueueConcurrency());
+#endif
+
+    MTEST(TestDisplayChar());
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
-
-#if 0
-    TestMicDump();
-#endif
 }

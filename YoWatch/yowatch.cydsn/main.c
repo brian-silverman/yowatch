@@ -70,6 +70,7 @@
 #include "spi.h"
 #include "queue.h"
 #include "i2s.h"
+#include "oled.h"
 
 //
 // Speedtest buffer
@@ -93,7 +94,6 @@ enum STATE {
     RUN_CMD,
     RESULT,
     CUSTOM_CMD,
-    DEBUG_LOCALLY,
     DEBUG_IDLE,
     DEBUG_SPEEDTEST,
     DEBUG_SPEEDTEST_2,
@@ -121,7 +121,6 @@ void PrintState(
         PRINT_CASE(RUN_CMD);
         PRINT_CASE(RESULT);
         PRINT_CASE(CUSTOM_CMD);
-        PRINT_CASE(DEBUG_LOCALLY);
         PRINT_CASE(DEBUG_IDLE);
         PRINT_CASE(DEBUG_SPEEDTEST);
         PRINT_CASE(DEBUG_SPEEDTEST_2);
@@ -239,6 +238,7 @@ int main()
 
     Timer_Programmable_Init();
 
+    DisplayInit();
     SerialRamInit();
     BufQueueInit();
 
@@ -282,11 +282,6 @@ int main()
                 break;
 
             case DEBUG_IDLE:
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_LOCALLY:
-                if (DebugLocallySM()) newState = SLEEP;
                 newState = GetBleStateIfNew(newState);
                 break;
 
