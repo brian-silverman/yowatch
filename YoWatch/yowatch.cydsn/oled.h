@@ -18,4 +18,22 @@ void DisplayFill(
     uint16 color
     );
 
+void DisplayChar(
+    unsigned char c,
+    uint32 x,
+    uint32 y,
+    int font,
+    int fgcolor,
+    int bgcolor
+    );
+
+void DisplayText(
+    unsigned char * text,
+    uint32 x,
+    uint32 y,
+    int font,
+    int fgcolor,
+    int bgcolor
+    );
+
 #endif

@@ -211,7 +211,7 @@ void DisplayRect(
     uint16 color
     )
 {
-    int i, j;
+    int i;
     int pixels = width * height;
 
     SET_COLUMN_ADDRESS(x, x + width - 1);
@@ -247,25 +247,20 @@ void DisplayRect(
         // (via DMA) in big chunks (as opposed to one write per pixel).
         //
         int numBytes = 0;
-        uint16 * p = displayBuf;
+        uint16 * p = (uint16 *) displayBuf;
         for (i = 0; i < pixels; i++) {
             *(p++) = color;
             numBytes += sizeof(color);
             if (numBytes >= sizeof(displayBuf)) {
                 SendBytesBlocking(displayBuf, numBytes, 0);
                 numBytes = 0;
-                p = displayBuf;
+                p = (uint16 *) displayBuf;
             }
         }
         if (numBytes > 0) {
             SendBytesBlocking(displayBuf, numBytes, 0);
         }
     }
-}
-
-void DisplayErase()
-{
-    DisplayFill(0x0000);
 }
 
 void DisplayFill(
@@ -275,8 +270,13 @@ void DisplayFill(
     DisplayRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, color);
 }
 
+void DisplayErase()
+{
+    DisplayFill(0x0000);
+}
+
 void DisplayChar(
-    unsigned char c,
+    uint8 c,
     uint32 x,
     uint32 y,
     int font,
@@ -284,7 +284,6 @@ void DisplayChar(
     int bgcolor
     )
 {
-    static int first = 999;
     assert(c < MAX_CHARS);
 
     struct FONT_CHAR *p = &fonts[font][c];
@@ -305,7 +304,7 @@ void DisplayChar(
 }
 
 void DisplayText(
-    unsigned char * text,
+    char * text,
     uint32 x,
     uint32 y,
     int font,
@@ -317,7 +316,7 @@ void DisplayText(
     while (*text != '\0') {
         DisplayChar(*text, x, y, font, fgcolor, bgcolor);
         assert(*text < MAX_CHARS);
-        x += pfont[*text].width + 1;
+        x += pfont[(uint32) *text].width + 1;
         text++;
     }
 }

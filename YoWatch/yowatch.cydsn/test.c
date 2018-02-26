@@ -579,7 +579,6 @@ void TestDisplayRect()
 
 void TestDisplayChar()
 {
-    int i;
     DisplayErase();
 #if 0
     MTEST(TestDisplayUpperLeftCorner());
@@ -598,11 +597,11 @@ void TestDisplayChar()
 #endif
     DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X8, 0, 0);
     DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
-    DisplayText("abcdefghijklmnop |\/?", 0, 30, FONT_5X8, 0, 0);
+    DisplayText("abcdefghijklmnop |\\/?", 0, 30, FONT_5X8, 0, 0);
     DisplayText("qrstuvwxyz ^&*() <>,.", 0, 40, FONT_5X8, 0, 0);
     DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 50, FONT_5X8_FIXED, 0, 0);
     DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 60, FONT_5X8_FIXED, 0, 0);
-    DisplayText("abcdefghijklmnop |\/?", 0, 70, FONT_5X8_FIXED, 0, 0);
+    DisplayText("abcdefghijklmnop |\\/?", 0, 70, FONT_5X8_FIXED, 0, 0);
     DisplayText("qrstuvwxyz ^&*() <>,.", 0, 80, FONT_5X8_FIXED, 0, 0);
     CyDelay(TEST_DISPLAY_DELAY);
 }

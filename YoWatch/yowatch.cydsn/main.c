@@ -89,50 +89,48 @@ enum STATE {
     SLEEP,
     TIME,
     VOICE,
-    NOTES,
-    NOTE_VIEW,
+    MSGS,
+    MSG_VIEW,
     RUN_CMD,
     RESULT,
     CUSTOM_CMD,
-    DEBUG_IDLE,
-    DEBUG_SPEEDTEST,
-    DEBUG_SPEEDTEST_2,
-    DEBUG_MIC,
-    DEBUG_MIC_2,
-    DEBUG_MIC_3,
-    DEBUG_MIC_4,
-} state, bleSelectedNextState;
+    SPEED_TEST,
+    MIC_TEST,
+    DISCONNECT,
+    MAX_STATES
+};
 
-void PrintState(
-    enum STATE state
-    )
-{
-    #define PRINT_CASE(state) case state: xprintf("State: " #state "\r\n"); break
-    #define NO_PRINT_CASE(state) case state: break
+enum {
+    FIRST_STATE_CALL,
+    MIDDLE_STATE_CALL,
+    LAST_STATE_CALL
+};
 
-    switch (state) {
-        PRINT_CASE(NONE);
-        PRINT_CASE(OFF);
-        PRINT_CASE(SLEEP);
-        PRINT_CASE(TIME);
-        PRINT_CASE(VOICE);
-        PRINT_CASE(NOTES);
-        PRINT_CASE(NOTE_VIEW);
-        PRINT_CASE(RUN_CMD);
-        PRINT_CASE(RESULT);
-        PRINT_CASE(CUSTOM_CMD);
-        PRINT_CASE(DEBUG_IDLE);
-        PRINT_CASE(DEBUG_SPEEDTEST);
-        PRINT_CASE(DEBUG_SPEEDTEST_2);
-        PRINT_CASE(DEBUG_MIC);
-        NO_PRINT_CASE(DEBUG_MIC_2);
-        NO_PRINT_CASE(DEBUG_MIC_3);
-        NO_PRINT_CASE(DEBUG_MIC_4);
-        default:
-            xprintf("State: UNKNOWN!\r\n");
-            break;
-    }
-}
+//
+// Transitions
+//
+#define BLE_DISCONNECT      (1 << 0)
+#define BLE_CONNECT         (1 << 1)
+#define BLE_CUSTOM_CMD      (1 << 2)
+#define BLE_RESULT          (1 << 3)
+#define BLE_MESSAGE         (1 << 4)
+#define BLE_MIC_TEST        (1 << 5)
+#define BLE_SPEED_TEST      (1 << 6)
+#define BLE_END_TEST        (1 << 7)
+
+#define BUTTON_FORWARD      (1 << 0)
+#define BUTTON_BACK         (1 << 1)
+#define BUTTON_UP           (1 << 2)
+#define BUTTON_DOWN         (1 << 3)
+#define BUTTON_ANY          (BUTTON_FORWARD | BUTTON_BACK | BUTTON_UP | BUTTON_DOWN)
+#define BUTTON_LEFT         BUTTON_BACK          
+#define BUTTON_RIGHT        BUTTON_FORWARD          
+
+#define ACCEL_TWIST         (1 << 0)
+
+#define VOICE_ACTIVITY      (1 << 0)
+#define VOICE_TIMEOUT       (1 << 1)
+
 
 //
 // BLE callback when debug command received
@@ -143,8 +141,7 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
     int len
     )
 {
-    xprintf("%d, %d, %d\r\n", *data, len, state);
-
+#if 0
     // TODO Fix hardcoded constants
     switch (*data) {
         case 0: // Exit debug mode
@@ -155,7 +152,6 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
                 bleSelectedNextState = DEBUG_IDLE;
             }
             xprintf("Go to DEBUG_IDLE\r\n");
-            PrintState(state);
             break;
         case 2: // Go to debug speedtest
             speedTestPackets = 100; // TODO need correct # packets
@@ -172,6 +168,7 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
             bleSelectedNextState = NONE;
             break;
     }
+#endif
 
     return 0;
 }
@@ -191,12 +188,309 @@ void OnConnectionChange(
 
 enum STATE GetBleStateIfNew(enum STATE state)
 {
+#if 0
     if (bleSelectedNextState != NONE) {
         state = bleSelectedNextState;
     }
     bleSelectedNextState = NONE;
+#endif
     return state;
 }
+
+//////////////////////////////////////////////////////////////////////
+//
+// State transition functions
+//
+
+int TrAccel(
+    )
+{
+    return 0;
+}
+
+int TrBle(
+    )
+{
+    return 0;
+}
+
+int TrButton(
+    )
+{
+    return 0;
+}
+
+int TrGoToSleep(
+    )
+{
+    return 0;
+}
+
+int TrVoice(
+    )
+{
+    return 1;
+}
+
+//////////////////////////////////////////////////////////////////////
+//
+// State functions
+//
+
+void SmOff(
+    int prevState,
+    int call
+    )
+{
+    DisplayInit();
+    SerialRamInit();
+    BufQueueInit();
+}
+
+void SmSleep(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmTime(
+    int prevState,
+    int call
+    )
+{
+    if (call == FIRST_STATE_CALL) {
+        Post();
+    }
+}
+
+void SmVoice(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmMsgs(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmMsgView(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmRunCmd(
+    int prevState,
+    int call
+    )
+{
+    xprintf("HALT!\r\n");
+    for(;;);
+}
+
+void SmResult(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmCustomCmd(
+    int prevState,
+    int call
+    )
+{
+}
+
+void SmSpeedTest(
+    int prevState,
+    int call
+    )
+{
+#if 0
+    case DEBUG_SPEEDTEST:
+        if (speedTestPackets > 0) {
+            if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+                ((uint32 *) buffer)[0] = 0;
+                buffer[0] = 3;
+                ((uint32 *) buffer)[1] = n++;
+                ((uint32 *) buffer)[2] = 0x11223344;
+
+                ret = BleSendNotification(
+                    CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
+                if (ret == 0) {
+                    speedTestPackets--;
+                }
+            }
+        } else {
+            newState = DEBUG_SPEEDTEST_2;
+        }
+        newState = GetBleStateIfNew(newState);
+        break;
+
+    case DEBUG_SPEEDTEST_2:
+        if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            ((uint32 *) buffer)[0] = 0;
+            buffer[0] = 4;
+
+            ret = BleSendNotification(
+                CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 1);
+            if (ret == 0) {
+                newState = DEBUG_IDLE;
+            }
+        }
+        newState = GetBleStateIfNew(newState);
+        break;
+#endif
+}
+
+void SmMicTest(
+    int prevState,
+    int call
+    )
+{
+#if 0
+    case DEBUG_MIC:
+        BufQueueInit();
+        micBytes = 0;
+        I2sStartDma(NULL, NULL);
+        newState = DEBUG_MIC_2;
+        newState = GetBleStateIfNew(newState);
+        break;
+
+    case DEBUG_MIC_2:
+        ret = DequeueBytes(buffer, 496, &done);
+        if (ret != -ENODATA) {
+            newState = DEBUG_MIC_3;
+        }
+        newState = GetBleStateIfNew(newState);
+        break;
+
+    case DEBUG_MIC_3:
+        if (done) {
+            newState = DEBUG_MIC_4;
+        }
+        newState = GetBleStateIfNew(newState);
+        break;
+
+    case DEBUG_MIC_4:
+        if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            buffer[0] = 5;
+            ret = BleSendNotification(
+                CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
+            if (ret == 0) {
+                micBytes += 500;
+                newState = DEBUG_MIC_2;
+            }
+        }
+        if (micBytes > 100000) {
+            I2sStopDma();
+            newState = DEBUG_IDLE;
+        }
+        newState = GetBleStateIfNew(newState);
+        break;
+
+    default:
+        break;
+#endif
+}
+
+void SmDisconnect(
+    int prevState,
+    int call
+    )
+{
+}
+
+//
+// State Machine transition structure
+//
+#define NAME(n) n, #n
+#define MAX_STATE_TRANSITIONS 5
+const struct {
+    int state;
+    char * name;
+    void (*func)(int, int);
+    struct TRANSITION {
+        int (*condition)(int);
+        int condArg;
+        int newState;
+    } transition[MAX_STATE_TRANSITIONS];
+} SM[MAX_STATES] = {
+    { NAME(NONE) },
+    { NAME(OFF), SmOff, {
+        { NULL, 0, TIME }
+        }},
+    { NAME(SLEEP), SmSleep, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrAccel, ACCEL_TWIST, TIME },
+        { TrButton, BUTTON_ANY, TIME },
+        { TrBle, BLE_SPEED_TEST | BLE_MIC_TEST, DISCONNECT },
+        }},
+    { NAME(TIME), SmTime, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrVoice, VOICE_ACTIVITY, VOICE },
+        { TrButton, BUTTON_FORWARD, MSGS },
+        }},
+    { NAME(VOICE), SmVoice, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrVoice, VOICE_TIMEOUT, RUN_CMD },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(MSGS), SmMsgs, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrButton, BUTTON_UP | BUTTON_DOWN, MSGS },
+        { TrButton, BUTTON_FORWARD, MSG_VIEW },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(MSG_VIEW), SmMsgView, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrButton, BUTTON_UP | BUTTON_DOWN, MSG_VIEW },
+        { TrButton, BUTTON_BACK, MSGS },
+        }},
+    { NAME(RUN_CMD), SmRunCmd, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrBle, BLE_CUSTOM_CMD, CUSTOM_CMD },
+        { TrBle, BLE_RESULT, RESULT },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(RESULT), SmResult, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrButton, BUTTON_UP | BUTTON_DOWN, RESULT },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(CUSTOM_CMD), SmCustomCmd, {
+        { TrBle, BLE_DISCONNECT, DISCONNECT },
+        { TrGoToSleep, 0, SLEEP },
+        { TrButton, BUTTON_UP | BUTTON_DOWN | BUTTON_FORWARD, CUSTOM_CMD },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(SPEED_TEST), SmSpeedTest, {
+        { TrBle, BLE_END_TEST, SLEEP },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(MIC_TEST), SmMicTest, {
+        { TrBle, BLE_END_TEST, SLEEP },
+        { TrButton, BUTTON_BACK, TIME },
+        }},
+    { NAME(DISCONNECT), SmDisconnect, {
+        { TrBle, BLE_CONNECT, TIME },
+        }},
+};
+
 
 //
 // Main entry point:
@@ -205,14 +499,9 @@ enum STATE GetBleStateIfNew(enum STATE state)
 //
 int main()
 {
-    uint32 n = 0;
-    int ret;
-    enum STATE newState, prevState;
-    int done;
-    int micBytes;
-
-    prevState = OFF;
-    state = DEBUG_MIC;
+    enum STATE state, prevState;
+    int i;
+    int first;
 
     CyDmaEnable();
     CyIntEnable(CYDMA_INTR_NUMBER);
@@ -237,135 +526,45 @@ int main()
     UART_1_Start();
 
     Timer_Programmable_Init();
+    //
+    // Verify state machine state field
+    //
+    for (i = 0; i < MAX_STATES; i++) {
+        // Assert state number is ordinal
+        assert(SM[i].state == i);
+        // Assert all states (except NONE) have state function
+        assert(i == NONE || SM[i].func);
+    }
+    assert(NONE == 0);
 
-    DisplayInit();
-    SerialRamInit();
-    BufQueueInit();
-
-    Post();
-    for(;;);
-
+    //
+    // SM
+    //
+    prevState = NONE;
+    state = OFF;
+    first = 1;
     for (;;) {
+        const struct TRANSITION * ptransition;
         CyBle_ProcessEvents();
-
-        if (state != prevState) PrintState(state);
-
-        newState = NONE;
-        switch (state) {
-            case OFF:
-                newState = SLEEP;
+        
+        if (first) {
+            xprintf("+State %s\r\n", SM[state].name);
+        }
+        SM[state].func(prevState, first ? FIRST_STATE_CALL : MIDDLE_STATE_CALL);
+        first = 0;
+        ptransition = &SM[state].transition[0];
+        while (ptransition->newState != NONE) {
+            if (!ptransition->condition || ptransition->condition(ptransition->condArg)) {
+                int newState = ptransition->newState;
+                xprintf("-State %s\r\n", SM[state].name);
+                SM[state].func(newState, LAST_STATE_CALL);
+                state = newState;
+                first = 1;
                 break;
-
-            case SLEEP:
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case TIME:
-                break;
-
-            case VOICE:
-                break;
-
-            case NOTES:
-                break;
-
-            case NOTE_VIEW:
-                break;
-
-            case RUN_CMD:
-                break;
-
-            case RESULT:
-                break;
-
-            case CUSTOM_CMD:
-                break;
-
-            case DEBUG_IDLE:
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_SPEEDTEST:
-                if (speedTestPackets > 0) {
-                    if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                        ((uint32 *) buffer)[0] = 0;
-                        buffer[0] = 3;
-                        ((uint32 *) buffer)[1] = n++;
-                        ((uint32 *) buffer)[2] = 0x11223344;
-
-                        ret = BleSendNotification(
-                            CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
-                        if (ret == 0) {
-                            speedTestPackets--;
-                        }
-                    }
-                } else {
-                    newState = DEBUG_SPEEDTEST_2;
-                }
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_SPEEDTEST_2:
-                if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                    ((uint32 *) buffer)[0] = 0;
-                    buffer[0] = 4;
-
-                    ret = BleSendNotification(
-                        CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 1);
-                    if (ret == 0) {
-                        newState = DEBUG_IDLE;
-                    }
-                }
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_MIC:
-                BufQueueInit();
-                micBytes = 0;
-                I2sStartDma(NULL, NULL);
-                newState = DEBUG_MIC_2;
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_MIC_2:
-                ret = DequeueBytes(buffer, 496, &done);
-                if (ret != -ENODATA) {
-                    newState = DEBUG_MIC_3;
-                }
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_MIC_3:
-                if (done) {
-                    newState = DEBUG_MIC_4;
-                }
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            case DEBUG_MIC_4:
-                if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                    buffer[0] = 5;
-                    ret = BleSendNotification(
-                        CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
-                    if (ret == 0) {
-                        micBytes += 500;
-                        newState = DEBUG_MIC_2;
-                    }
-                }
-                if (micBytes > 100000) {
-                    I2sStopDma();
-                    newState = DEBUG_IDLE;
-                }
-                newState = GetBleStateIfNew(newState);
-                break;
-
-            default:
-                break;
+            }
+            ptransition++;
         }
 
         prevState = state;
-        if (newState != NONE) {
-            state = newState;
-        }
     }
 }
