@@ -2,22 +2,18 @@
 #define _FONTS_H_
 
 #include <project.h>
+#include "fonts/_fonts.h"
 
 struct FONT_CHAR {
-    uint8 * image;
+    const uint16 * image;
     uint16 width;
     uint16 height;
 };
 
-enum {
-    FONT_5X8,
-    FONT_5X8_FIXED,
-    MAX_FONTS
-};
-
 #define MAX_CHARS 128
+#define INTER_CHAR_SPACING 1
 
-extern struct FONT_CHAR *fonts[MAX_FONTS];
+extern const struct FONT_CHAR *fonts[MAX_FONTS];
 
 #endif
 

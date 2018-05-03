@@ -19,6 +19,8 @@
 #include "i2s.h"
 #include "oled.h"
 #include "fonts.h"
+#include "colors.h"
+#include "timeit.h"
 
 #define TEST_VERBOSE 0
 
@@ -566,6 +568,103 @@ int TestMicDump()
     return 0;
 }
 
+void TestDisplayUpperLeftCorner()
+{
+}
+
+void TestDisplayFill()
+{
+}
+
+void TestDisplayHline()
+{
+}
+
+void TestDisplayVline()
+{
+}
+
+void TestDisplayLine()
+{
+}
+
+void TestDisplayImage()
+{
+}
+
+void TestDisplayText()
+{
+}
+
+void TestDisplayScrollUp()
+{
+}
+
+void TestDisplayScrollDown()
+{
+}
+
+void TestTextBox()
+{
+    int fgColor = 0;
+    int bgColor = 0;
+    int shiftUp = 0;
+    int justify = 0;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    char * lines[] = {
+        "This is the first line",
+        "Second line",
+        "This line is long 1234567890",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten",
+        "Eleven",
+        "Twelve",
+    };
+
+    TextBoxDraw(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
+}
+
+void TestTextBoxSmall()
+{
+    int fgColor = 0;
+    int bgColor = 0;
+    int shiftUp = 0;
+    int justify = 0;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    char * lines[] = {
+        "TOP LINE",
+        "TRIMMED BOX",
+        "Six",
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten",
+        "Eleven",
+        "Twelve",
+    };
+
+    TextBoxDraw(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
+}
+
+void TestTextBoxScrolling()
+{
+}
+
+void TestListBox()
+{
+}
+
 #define TEST_DISPLAY_DELAY      (2000)
 void TestDisplayRect()
 {
@@ -577,25 +676,69 @@ void TestDisplayRect()
     CyDelay(TEST_DISPLAY_DELAY);
 }
 
+int TestDisplayRgbColors()
+{
+    TEST_INIT;
+
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0,    0), 0x0000);
+
+    TEST_ASSERT_INT_EQ(RGB565(1<<3,    0,    0), 0x0008);
+    TEST_ASSERT_INT_EQ(RGB565(1<<4,    0,    0), 0x0010);
+    TEST_ASSERT_INT_EQ(RGB565(1<<5,    0,    0), 0x0020);
+    TEST_ASSERT_INT_EQ(RGB565(1<<6,    0,    0), 0x0040);
+    TEST_ASSERT_INT_EQ(RGB565(1<<7,    0,    0), 0x0080);
+
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<2,    0), 0x2000);
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<3,    0), 0x4000);
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<4,    0), 0x8000);
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<5,    0), 0x0001);
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<6,    0), 0x0002);
+    TEST_ASSERT_INT_EQ(RGB565(   0, 1<<7,    0), 0x0004);
+
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0, 1<<3), 0x0100);
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0, 1<<4), 0x0200);
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0, 1<<5), 0x0400);
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0, 1<<6), 0x0800);
+    TEST_ASSERT_INT_EQ(RGB565(   0,    0, 1<<7), 0x1000);
+
+    TEST_RETURN;
+}
+
+void test() { DisplayText("ABCDEFGHIJKLMNOPQRST", 0, 10, FONT_5X8, 0, 0); }
+
 void TestDisplayChar()
 {
-    DisplayErase();
 #if 0
-    MTEST(TestDisplayUpperLeftCorner());
-    MTEST(TestDisplayFill(TEST_FILL_COLOR_RED));
-    MTEST(TestDisplayFill(TEST_FILL_COLOR_BLUE));
-    MTEST(TestDisplayFill(TEST_FILL_COLOR_GREEN));
-    MTEST(TestDisplayHline());
-    MTEST(TestDisplayVline());
-    MTEST(TestDisplayLine());
-    MTEST(TestDisplayImage());
-    MTEST(TestDisplayText());
-    MTEST(TestDisplayImageTiling());
-    MTEST(TestDisplayScrollUp());
-    MTEST(TestDisplayScrollDown());
-    MTEST(TestDisplayRect());
+    int i;
 #endif
-    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X8, 0, 0);
+    DisplayErase();
+
+    //TimeIt(DisplayErase, 0);
+#if 0
+    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
+#endif
+#if 0
+    for (i = 0; i < 16; i++) {
+        DisplayRect(8*i, 0, 8, 96, 1 << i);
+    }
+#endif
+#if 0
+    for (int i = 0; i < 1000; i++) {
+        DisplayRect(0, 10, 128, 10, 0);
+        DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 10, FONT_5X8, 0, 0);
+        CyDelay(50);
+        DisplayRect(0, 20, 128, 10, 0);
+        DisplayText("abcdefghijklmnop |\\/?", 0, 20, FONT_5X8, 0, 0);
+        CyDelay(50);
+    }
+#endif
+    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
+    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
+    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 30, FONT_5X8, 0, 0);
+    //DisplayText("F", 0, 10, FONT_5X5, 0, 0);
+    //DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
+#if 0
+    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
     DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
     DisplayText("abcdefghijklmnop |\\/?", 0, 30, FONT_5X8, 0, 0);
     DisplayText("qrstuvwxyz ^&*() <>,.", 0, 40, FONT_5X8, 0, 0);
@@ -603,6 +746,7 @@ void TestDisplayChar()
     DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 60, FONT_5X8_FIXED, 0, 0);
     DisplayText("abcdefghijklmnop |\\/?", 0, 70, FONT_5X8_FIXED, 0, 0);
     DisplayText("qrstuvwxyz ^&*() <>,.", 0, 80, FONT_5X8_FIXED, 0, 0);
+#endif
     CyDelay(TEST_DISPLAY_DELAY);
 }
 
@@ -640,7 +784,25 @@ void TestSuite()
     TEST(TestQueueConcurrency());
 #endif
 
+    TEST(TestDisplayRgbColors());
     MTEST(TestDisplayChar());
+
+    MTEST(TestDisplayUpperLeftCorner());
+    MTEST(TestDisplayFill(RED));
+    MTEST(TestDisplayFill(BLUE));
+    MTEST(TestDisplayFill(GREEN));
+    MTEST(TestDisplayHline());
+    MTEST(TestDisplayVline());
+    MTEST(TestDisplayLine());
+    MTEST(TestDisplayImage());
+    MTEST(TestDisplayText());
+    // ??? MTEST(TestDisplayImageTiling());
+    MTEST(TestDisplayScrollUp());
+    MTEST(TestDisplayScrollDown());
+    MTEST(TestDisplayRect());
+    MTEST(TestTextBox());
+    MTEST(TestTextBoxScrolling());
+    MTEST(TestListBox());
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }

@@ -4,7 +4,8 @@
 // Modified for little-endian.
 //
 
-#define RGB565LE(r,g,b)     ((uint16) ((b << 3) | (r << 8) | (g >> 3) | (g << 13))
+#define RGB565LE(r,g,b)     \
+    ((uint16) (((b&0xF8) << 5) | ((r&0xF8) << 0) | (g >> 5) | ((g&0xFC) << 11)))
 #define RGB565(r,g,b)       RGB565LE(r,g,b)
 
 #define MAROON                          RGB565(128, 0, 0)

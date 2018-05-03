@@ -21,11 +21,18 @@
 #define SCREEN_WIDTH    128
 #define SCREEN_HEIGHT   96
 
+#define STATUS_BAR_HEIGHT   7   // 5x5 font plus top/bottom pixel
+#define STATUS_BAR_WIDTH    SCREEN_WIDTH
+
 #define CMD_ARGS(cmd,argc,...) \
     { \
         uint8 data[argc] = {__VA_ARGS__}; \
         SendCommand(cmd, data, argc); \
     }
+
+#define MIN(a,b) ((a < b) ? (a) : (b))
+#define MAX(a,b) ((a > b) ? (a) : (b))
+#define CROP(x,a,b) (x < a ? (a) : (x > b ? (b) : (x)))
 
 #define SET_COLUMN_ADDRESS(a, b)                CMD_ARGS(0x15, 2, a, b)
 #define SET_ROW_ADDRESS(a, b)                   CMD_ARGS(0x75, 2, a, b)
@@ -66,7 +73,7 @@
 #define LOOKUP_TABLE_FOR_GRAYSCALE              0xB8
 #define LOOKUP_TABLE_FOR_GRAYSCALE_BYTES        63
 
-#if 0
+#ifdef UNIVISION_GAMMA_LOOKUP_TABLE
 //
 // Suggested gamma lookup table from Univision Users Guide
 //
@@ -106,7 +113,19 @@ uint8 lookupTableForGrayscale[LOOKUP_TABLE_FOR_GRAYSCALE_BYTES] = {
     };
 #endif
     
-uint8 displayBuf[1024];
+//
+// Display buf that is used for all Display function as a temp framebuffer for
+// faster display writing.  Display buf functions are not reentrant, so this
+// same buf can be used by all functions.
+//
+// Size of display buf must be at least as big as status bar.
+//
+#define DISPLAY_BUF_SIZE (4 * 1024)
+uint8 displayBuf[DISPLAY_BUF_SIZE];
+#if DISPLAY_BUF_SIZE < STATUS_BAR_HEIGHT * STATUS_BAR_WIDTH * 2
+    #error DISPLAY_BUF_SIZE is not big enough to fit status bar
+#endif
+
 
 static int SendDataRepeatedBlocking(
     uint8 data,
@@ -180,14 +199,15 @@ void DisplayInit()
     SET_DISPLAY_OFFSET(0x00);
     SET_DISPLAY_START_LINE(0x00);
     // SET_REMAP:
-    //      A[0]=0b, Horizontal address increment
+    //      A[0]=1b, Vertical address increment
     //      A[1]=1b, Column address 0 is mapped to SEG0
-    //      A[2]=0b, Color sequence: A->B->C
+    //      A[2]=1b, Color sequence: C->B->A (sets correct RGB565 order)
+    //      A[3]=0b, Reserved
     //      A[4]=0b, Scan from COM[N-1] to COM0. 
     //      A[5]=1b, Enable COM Split Odd Even [reset]
     //      A[7:6]=00b Set Color Depth 65k color 
     // Bits 1 and 4 set the correct screen orientation
-    SET_REMAP(0x22);    
+    SET_REMAP(0x27);    
     SET_GPIO(0x00);
     SET_FUNCTION_SELECTION(0x01);
     SET_SEGMENT_LOW_VOLTAGE(0xA0, 0xB5, 0x55);
@@ -204,8 +224,8 @@ void DisplayInit()
 }
 
 void DisplayRect(
-    uint32 x,
-    uint32 y,
+    int x,
+    int y,
     uint32 width,
     uint32 height,
     uint16 color
@@ -275,34 +295,6 @@ void DisplayErase()
     DisplayFill(0x0000);
 }
 
-void DisplayChar(
-    uint8 c,
-    uint32 x,
-    uint32 y,
-    int font,
-    int fgcolor,
-    int bgcolor
-    )
-{
-    assert(c < MAX_CHARS);
-
-    struct FONT_CHAR *p = &fonts[font][c];
-    int bytes = p->width * p->height * 2;
-
-    //
-    // Check out of bounds
-    //
-    SET_COLUMN_ADDRESS(x, x + p->width - 1);
-    SET_ROW_ADDRESS(y - p->height + 1, y);
-    WRITE_RAM_COMMAND();
-
-    //
-    // Copy if colored. If -1, default color is used
-    //
-    SendBytesBlocking(p->image, bytes, 0);
-    return;
-}
-
 void DisplayText(
     char * text,
     uint32 x,
@@ -312,11 +304,64 @@ void DisplayText(
     int bgcolor
     )
 {
-    struct FONT_CHAR *pfont = fonts[font];
-    while (*text != '\0') {
-        DisplayChar(*text, x, y, font, fgcolor, bgcolor);
-        assert(*text < MAX_CHARS);
-        x += pfont[(uint32) *text].width + 1;
-        text++;
+    const struct FONT_CHAR * pfont = fonts[font];
+    char * t;
+    int textWidth = 0;
+    int textHeight = 0;
+    int textOnScreenX1, textOnScreenX2;
+    int textOnScreenY1, textOnScreenY2;
+    int textOnScreenWidth, textOnScreenHeight;
+    uint16 * dest;
+
+    //
+    // Determine text height/width
+    //
+#if 0
+xprintf("----%s: %d\r\n", __FILE__, __LINE__);
+#endif
+    t = text;
+    while (*t != '\0') {
+        assert(*t >= 0 && *t < MAX_CHARS);
+        const struct FONT_CHAR * p = &pfont[(int) *t];
+        textWidth += p->width + INTER_CHAR_SPACING;
+        textHeight = MAX(textHeight, p->height);
+        // For now, only handle fixed height fonts
+        assert(textHeight == p->height);
+        t++;
     }
+    textWidth--;
+
+    //
+    // Determine rect that text overlaps with screen
+    //
+    textOnScreenX1 = CROP(x, 0, SCREEN_WIDTH);
+    textOnScreenY1 = CROP(y, 0, SCREEN_HEIGHT);
+    textOnScreenX2 = CROP(x + textWidth - 1, 0, SCREEN_WIDTH);
+    textOnScreenY2 = CROP(y + textHeight - 1, 0, SCREEN_HEIGHT);
+    textOnScreenWidth = textOnScreenX2 - textOnScreenX1 + 1;
+    textOnScreenHeight = textOnScreenY2 - textOnScreenY1 + 1;
+
+    memset(displayBuf, 0, sizeof(displayBuf));
+
+    t = text;
+    dest = (uint16 *) displayBuf;
+    while (*t != '\0') {
+        const struct FONT_CHAR * p = &pfont[(int) *t];
+        int bytes = p->width * p->height * sizeof(uint16);
+        memcpy(dest, p->image, bytes);
+        dest += bytes/2;
+        memset(dest, 0, p->height * INTER_CHAR_SPACING);
+        dest += p->height * INTER_CHAR_SPACING;
+        t++;
+    }
+
+    xprintf("%d, %d, %d, %d\r\n", textOnScreenX1, textOnScreenX2, textOnScreenY1, textOnScreenY2);
+    SET_COLUMN_ADDRESS(textOnScreenX1, textOnScreenX2);
+    SET_ROW_ADDRESS(textOnScreenY1, textOnScreenY2);
+    WRITE_RAM_COMMAND();
+
+    //
+    // Copy if colored. If -1, default color is used
+    //
+    SendBytesBlocking(displayBuf, textOnScreenWidth * textOnScreenHeight * 2, 0);
 }

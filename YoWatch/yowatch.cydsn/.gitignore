@@ -2,4 +2,6 @@ REBUILD.log
 BUILD.log
 CLEAN.log
 _version.h
+fonts/_fonts.h
+fonts/fonts.c
 
