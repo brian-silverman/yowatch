@@ -21,6 +21,8 @@
 #include "fonts.h"
 #include "colors.h"
 #include "timeit.h"
+#include "util.h"
+#include "draw.h"
 
 #define TEST_VERBOSE 0
 
@@ -59,6 +61,10 @@ int fail = 0;
         if (testAssertFails) xprintf("\r\n"); \
         return testAssertFails; \
     }
+
+#define MTEST_DELAY      (2000)
+#define MTEST_DELAY_FAST (1000)
+#define MTEST_DELAY_SLOW (4000)
 
 int _TestAssert(
     int assertion,
@@ -568,113 +574,9 @@ int TestMicDump()
     return 0;
 }
 
-void TestDisplayUpperLeftCorner()
-{
-}
-
-void TestDisplayFill()
-{
-}
-
-void TestDisplayHline()
-{
-}
-
-void TestDisplayVline()
-{
-}
-
-void TestDisplayLine()
-{
-}
-
-void TestDisplayImage()
-{
-}
-
-void TestDisplayText()
-{
-}
-
-void TestDisplayScrollUp()
-{
-}
-
-void TestDisplayScrollDown()
-{
-}
-
-void TestTextBox()
-{
-    int fgColor = 0;
-    int bgColor = 0;
-    int shiftUp = 0;
-    int justify = 0;
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
-    char * lines[] = {
-        "This is the first line",
-        "Second line",
-        "This line is long 1234567890",
-        "Four",
-        "Five",
-        "Six",
-        "Seven",
-        "Eight",
-        "Nine",
-        "Ten",
-        "Eleven",
-        "Twelve",
-    };
-
-    TextBoxDraw(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
-}
-
-void TestTextBoxSmall()
-{
-    int fgColor = 0;
-    int bgColor = 0;
-    int shiftUp = 0;
-    int justify = 0;
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
-    char * lines[] = {
-        "TOP LINE",
-        "TRIMMED BOX",
-        "Six",
-        "Seven",
-        "Eight",
-        "Nine",
-        "Ten",
-        "Eleven",
-        "Twelve",
-    };
-
-    TextBoxDraw(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
-}
-
-void TestTextBoxScrolling()
-{
-}
-
-void TestListBox()
-{
-}
-
-#define TEST_DISPLAY_DELAY      (2000)
-void TestDisplayRect()
-{
-    int i;
-    DisplayErase();
-    for (i = 0; i < 16; i++) {
-        DisplayRect(8*i, 0, 8, 96, 1 << i);
-    }
-    CyDelay(TEST_DISPLAY_DELAY);
-}
+//
+// DISPLAY FUNCTIONS
+//
 
 int TestDisplayRgbColors()
 {
@@ -704,50 +606,296 @@ int TestDisplayRgbColors()
     TEST_RETURN;
 }
 
-void test() { DisplayText("ABCDEFGHIJKLMNOPQRST", 0, 10, FONT_5X8, 0, 0); }
-
-void TestDisplayChar()
+void TestDisplayUpperLeftCorner()
 {
-#if 0
-    int i;
-#endif
+    int font = FONT_5X5;
+    const char * text[] = { "UPPER", "LEFT", "CORNER" };
+    int fontHeight;
+
     DisplayErase();
 
-    //TimeIt(DisplayErase, 0);
+    GetTextDimensions(NULL, font, NULL, &fontHeight);
+    for (int line = 0; line < ARRAY_SIZEOF(text); line++) {
+        DrawText((char *) text[line], 0, (line + 1) * (fontHeight + 1), font, WHITE, BLACK);
+    }
+    CyDelay(MTEST_DELAY_FAST);
+}
+
+void TestDisplayFill(
+    char * colorName,
+    int color
+    )
+{
+    int font = FONT_5X8;
+    const int BORDER = 2;
+    int textHeight;
+    int textWidth;
+    char s[32];
+
+    sprintf(s, "%s FILL", colorName);
+
+    GetTextDimensions(s, font, &textWidth, &textHeight);
+    int left = (SCREEN_WIDTH - textWidth) / 2;
+    int top = (SCREEN_HEIGHT - textHeight) / 2;
+    int right = left + textWidth - 1;
+    int bottom = top + textHeight - 1;
+
+    DisplayFill(color);
+    DrawRect(left - BORDER, top - BORDER, right + BORDER, bottom + BORDER, 0);
+    DrawText(s, left, bottom, font, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY_FAST);
+}
+
+void TestDrawLine()
+{
+    // Horizontal
+    // Vertical
+    // diagonal
+    // colors
+    // OOB
+    // overlapping
+    // on top of colored rectangle
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawRect()
+{
+    // OOB
+    // Border width
+    // Colors
+    // Overlapping
+    // Points may be flipped
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawImage()
+{
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDisplayScrollUp()
+{
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDisplayScrollDown()
+{
+    CyDelay(MTEST_DELAY);
+}
+
+void TestTextBox()
+{
 #if 0
-    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
+    int fgColor = 0;
+    int bgColor = 0;
+    int shiftUp = 0;
+    int justify = 0;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    char * lines[] = {
+        "This is the first line",
+        "Second line",
+        "This line is long 1234567890",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten",
+        "Eleven",
+        "Twelve",
+    };
+
+    // Multiple text boxes
+    // Overlapping
+    // OOB
+    //
+    //DrawTextBox(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
+    CyDelay(MTEST_DELAY);
 #endif
-#if 0
+}
+
+void TestTextBoxScrolling()
+{
+    // Full screen scrolling, full text
+}
+
+void TestDisplayRect()
+{
+    int i;
+    DisplayErase();
     for (i = 0; i < 16; i++) {
         DisplayRect(8*i, 0, 8, 96, 1 << i);
     }
-#endif
-#if 0
-    for (int i = 0; i < 1000; i++) {
-        DisplayRect(0, 10, 128, 10, 0);
-        DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 10, FONT_5X8, 0, 0);
-        CyDelay(50);
-        DisplayRect(0, 20, 128, 10, 0);
-        DisplayText("abcdefghijklmnop |\\/?", 0, 20, FONT_5X8, 0, 0);
-        CyDelay(50);
+    CyDelay(MTEST_DELAY);
+}
+
+void TestFont(
+    int font
+    )
+{
+    const char LINE_LEN = 16;
+    char s[LINE_LEN+1];
+    int fontHeight;
+
+    DisplayErase();
+
+    GetTextDimensions(NULL, font, NULL, &fontHeight);
+    for (int line = 0; line < 128/LINE_LEN; line++) {
+        for (int j = 0; j < LINE_LEN; j++) {
+            s[j] = line * LINE_LEN + j;
+        }
+        DrawText(s, 0, (line + 1) * (fontHeight + 1), font, WHITE, BLACK);
     }
-#endif
-    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
-    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
-    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 30, FONT_5X8, 0, 0);
-    //DisplayText("F", 0, 10, FONT_5X5, 0, 0);
-    //DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
-#if 0
-    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 10, FONT_5X5, 0, 0);
-    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 20, FONT_5X8, 0, 0);
-    DisplayText("abcdefghijklmnop |\\/?", 0, 30, FONT_5X8, 0, 0);
-    DisplayText("qrstuvwxyz ^&*() <>,.", 0, 40, FONT_5X8, 0, 0);
-    DisplayText("ABCDEFGHIJKLMNOP -=_+", 0, 50, FONT_5X8_FIXED, 0, 0);
-    DisplayText("QRSTUVWXYZ !@#$% []{}", 0, 60, FONT_5X8_FIXED, 0, 0);
-    DisplayText("abcdefghijklmnop |\\/?", 0, 70, FONT_5X8_FIXED, 0, 0);
-    DisplayText("qrstuvwxyz ^&*() <>,.", 0, 80, FONT_5X8_FIXED, 0, 0);
-#endif
-    CyDelay(TEST_DISPLAY_DELAY);
+
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawText()
+{
+    int font = FONT_5X8;
+    int textHeight;
+    int textWidth;
+    int x, y;
+    char * s;
+
+    DisplayErase();
+
+    //
+    // Title
+    //
+    x = 10;
+    y = 20;
+    DrawText("DrawText()", x, y, font, WHITE, BLACK);
+
+    //
+    // Bordered text
+    //
+    s = "Tight red border";
+    GetTextDimensions(s, font, &textWidth, &textHeight);
+    y += 10;
+    DrawRect(x - 1, y - 1, x + textWidth, y + textHeight, RED);
+    y += textHeight - 1;
+    DrawText(s, x, y, font, WHITE, BLACK);
+
+    //
+    // Inverted characters - TBD
+    //
+    
+    //
+    // FG/BG colors
+    //
+    y = 65;
+    DrawText("RED on GREEN", x, y, font, RED, GREEN);
+    y+= textHeight;
+    DrawText("YELLOW on BLUE", x, y, font, YELLOW, BLUE);
+    y+= textHeight;
+    DrawText("ORANGE on PURPLE", x, y, font, ORANGE, PURPLE);
+
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawTextOobEdges()
+{
+    int font = FONT_5X8;
+    int textHeight;
+    int textWidth;
+    char * s;
+
+    DisplayErase();
+
+    //
+    // Title
+    //
+    DrawText("DrawText() OOB", 20, 40, font, WHITE, BLACK);
+    DrawText("  AT EDGES", 20, 50, font, WHITE, BLACK);
+
+    //
+    // OOB at edges
+    //
+    s = "12345";
+    GetTextDimensions(s, font, &textWidth, &textHeight);
+    DrawText(s, (SCREEN_WIDTH - textWidth)/2, textHeight/2, font, WHITE, BLACK);
+    DrawText(s, (SCREEN_WIDTH - textWidth)/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
+    DrawText(s, -textWidth/2, (SCREEN_HEIGHT - textHeight)/2, font, WHITE, BLACK);
+    DrawText(s, SCREEN_WIDTH - textWidth/2, (SCREEN_HEIGHT - textHeight)/2, font, WHITE, BLACK);
+
+    //
+    // OOB at corners
+    //
+    DrawText(s, -textWidth/2, textHeight/2, font, WHITE, BLACK);
+    DrawText(s, -textWidth/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
+    DrawText(s, SCREEN_WIDTH - textWidth/2, textHeight/2, font, WHITE, BLACK);
+    DrawText(s, SCREEN_WIDTH - textWidth/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
+    
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawTextOob()
+{
+    int font = FONT_5X8;
+
+    DisplayErase();
+
+    //
+    // Title
+    //
+    DrawText("DrawText() OOB", 30, 40, font, WHITE, BLACK);
+    DrawText("  SHOULD BE", 30, 50, font, WHITE, BLACK);
+    DrawText("  OTHERWISE", 30, 60, font, WHITE, BLACK);
+    DrawText("    BLANK", 30, 70, font, WHITE, BLACK);
+
+    //
+    // OOB text to draw
+    //
+    int textHeight;
+    int textWidth;
+    char * s = "12345";
+    GetTextDimensions(s, font, &textWidth, &textHeight);
+
+    //
+    // OOB text to the left
+    //
+    DrawText(s, -100, -100, font, WHITE, BLACK);
+    DrawText(s, -100, -4, font, WHITE, BLACK);
+    DrawText(s, -100, 0, font, WHITE, BLACK);
+    DrawText(s, -100, 4, font, WHITE, BLACK);
+    DrawText(s, -100, 50, font, WHITE, BLACK);
+    DrawText(s, -100, SCREEN_HEIGHT - 4, font, WHITE, BLACK);
+    DrawText(s, -100, SCREEN_HEIGHT, font, WHITE, BLACK);
+    DrawText(s, -100, SCREEN_HEIGHT + 4, font, WHITE, BLACK);
+
+    //
+    // OOB text to the right
+    //
+    DrawText(s, 200, -100, font, WHITE, BLACK);
+    DrawText(s, 200, -4, font, WHITE, BLACK);
+    DrawText(s, 200, 0, font, WHITE, BLACK);
+    DrawText(s, 200, 4, font, WHITE, BLACK);
+    DrawText(s, 200, 50, font, WHITE, BLACK);
+    DrawText(s, 200, SCREEN_HEIGHT - 4, font, WHITE, BLACK);
+    DrawText(s, 200, SCREEN_HEIGHT, font, WHITE, BLACK);
+    DrawText(s, 200, SCREEN_HEIGHT + 4, font, WHITE, BLACK);
+
+    //
+    // OOB text above the top
+    //
+    DrawText(s, -10,                -100, font, WHITE, BLACK);
+    DrawText(s, 50,                 -100, font, WHITE, BLACK);
+    DrawText(s, SCREEN_WIDTH - 10,  -100, font, WHITE, BLACK);
+
+    //
+    // OOB text below the bottom
+    //
+    DrawText(s, -10,                200, font, WHITE, BLACK);
+    DrawText(s, 50,                 200, font, WHITE, BLACK);
+    DrawText(s, SCREEN_WIDTH - 10,  200, font, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY_FAST);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -767,7 +915,6 @@ void TestSuite()
     // Test TX after RX, as it was previously failing
     TEST(TestSpiXferInterrupts(TEST_SPI_XFER_TX, 1));
 
-#if 0
     TEST(TestSpiXferTooMany());
 
     TEST(TestSpiXferWriteReadMem(TEST_SPI_XFER_UNLOCKED));
@@ -782,27 +929,31 @@ void TestSuite()
     TEST(TestQueueEnqueueDequeueVariableSizes());
     TEST(TestQueueFillThenEmpty());
     TEST(TestQueueConcurrency());
-#endif
 
     TEST(TestDisplayRgbColors());
-    MTEST(TestDisplayChar());
 
     MTEST(TestDisplayUpperLeftCorner());
-    MTEST(TestDisplayFill(RED));
-    MTEST(TestDisplayFill(BLUE));
-    MTEST(TestDisplayFill(GREEN));
-    MTEST(TestDisplayHline());
-    MTEST(TestDisplayVline());
-    MTEST(TestDisplayLine());
-    MTEST(TestDisplayImage());
-    MTEST(TestDisplayText());
-    // ??? MTEST(TestDisplayImageTiling());
+    MTEST(TestDisplayFill("RED", RED));
+    MTEST(TestDisplayFill("BLUE", BLUE));
+    MTEST(TestDisplayFill("GREEN", GREEN));
+#if 0
     MTEST(TestDisplayScrollUp());
     MTEST(TestDisplayScrollDown());
-    MTEST(TestDisplayRect());
+#endif
+
+    MTEST(TestDrawText());
+    MTEST(TestDrawTextOobEdges());
+    MTEST(TestDrawTextOob());
+#if 0
+    MTEST(TestDrawLine());
+    MTEST(TestDrawRect());
+    MTEST(TestDrawImage());
     MTEST(TestTextBox());
     MTEST(TestTextBoxScrolling());
-    MTEST(TestListBox());
+    MTEST(TestFont(FONT_5X5));
+    MTEST(TestFont(FONT_5X8));
+    MTEST(TestDrawStatusBar());
+#endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }

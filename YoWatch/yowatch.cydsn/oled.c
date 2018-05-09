@@ -13,13 +13,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include "oled.h"
 #include "printf.h"
 #include "spi.h"
 #include "assert.h"
-#include "fonts.h"
-
-#define SCREEN_WIDTH    128
-#define SCREEN_HEIGHT   96
 
 #define STATUS_BAR_HEIGHT   7   // 5x5 font plus top/bottom pixel
 #define STATUS_BAR_WIDTH    SCREEN_WIDTH
@@ -30,9 +27,6 @@
         SendCommand(cmd, data, argc); \
     }
 
-#define MIN(a,b) ((a < b) ? (a) : (b))
-#define MAX(a,b) ((a > b) ? (a) : (b))
-#define CROP(x,a,b) (x < a ? (a) : (x > b ? (b) : (x)))
 
 #define SET_COLUMN_ADDRESS(a, b)                CMD_ARGS(0x15, 2, a, b)
 #define SET_ROW_ADDRESS(a, b)                   CMD_ARGS(0x75, 2, a, b)
@@ -224,8 +218,8 @@ void DisplayInit()
 }
 
 void DisplayRect(
-    int x,
-    int y,
+    uint32 x,
+    uint32 y,
     uint32 width,
     uint32 height,
     uint16 color
@@ -295,73 +289,23 @@ void DisplayErase()
     DisplayFill(0x0000);
 }
 
-void DisplayText(
-    char * text,
-    uint32 x,
-    uint32 y,
-    int font,
-    int fgcolor,
-    int bgcolor
+void DisplayBitmap(
+    uint8 * buf,
+    int x1,
+    int y1,
+    int x2,
+    int y2
     )
 {
-    const struct FONT_CHAR * pfont = fonts[font];
-    char * t;
-    int textWidth = 0;
-    int textHeight = 0;
-    int textOnScreenX1, textOnScreenX2;
-    int textOnScreenY1, textOnScreenY2;
-    int textOnScreenWidth, textOnScreenHeight;
-    uint16 * dest;
+    int width, height;
 
-    //
-    // Determine text height/width
-    //
-#if 0
-xprintf("----%s: %d\r\n", __FILE__, __LINE__);
-#endif
-    t = text;
-    while (*t != '\0') {
-        assert(*t >= 0 && *t < MAX_CHARS);
-        const struct FONT_CHAR * p = &pfont[(int) *t];
-        textWidth += p->width + INTER_CHAR_SPACING;
-        textHeight = MAX(textHeight, p->height);
-        // For now, only handle fixed height fonts
-        assert(textHeight == p->height);
-        t++;
-    }
-    textWidth--;
-
-    //
-    // Determine rect that text overlaps with screen
-    //
-    textOnScreenX1 = CROP(x, 0, SCREEN_WIDTH);
-    textOnScreenY1 = CROP(y, 0, SCREEN_HEIGHT);
-    textOnScreenX2 = CROP(x + textWidth - 1, 0, SCREEN_WIDTH);
-    textOnScreenY2 = CROP(y + textHeight - 1, 0, SCREEN_HEIGHT);
-    textOnScreenWidth = textOnScreenX2 - textOnScreenX1 + 1;
-    textOnScreenHeight = textOnScreenY2 - textOnScreenY1 + 1;
-
-    memset(displayBuf, 0, sizeof(displayBuf));
-
-    t = text;
-    dest = (uint16 *) displayBuf;
-    while (*t != '\0') {
-        const struct FONT_CHAR * p = &pfont[(int) *t];
-        int bytes = p->width * p->height * sizeof(uint16);
-        memcpy(dest, p->image, bytes);
-        dest += bytes/2;
-        memset(dest, 0, p->height * INTER_CHAR_SPACING);
-        dest += p->height * INTER_CHAR_SPACING;
-        t++;
-    }
-
-    xprintf("%d, %d, %d, %d\r\n", textOnScreenX1, textOnScreenX2, textOnScreenY1, textOnScreenY2);
-    SET_COLUMN_ADDRESS(textOnScreenX1, textOnScreenX2);
-    SET_ROW_ADDRESS(textOnScreenY1, textOnScreenY2);
+    SET_COLUMN_ADDRESS(x1, x2);
+    SET_ROW_ADDRESS(y1, y2);
     WRITE_RAM_COMMAND();
 
-    //
-    // Copy if colored. If -1, default color is used
-    //
-    SendBytesBlocking(displayBuf, textOnScreenWidth * textOnScreenHeight * 2, 0);
+    width = x2 - x1 + 1;
+    height = y2 - y1 + 1;
+    SendBytesBlocking(buf, width * height * 2, 0);
 }
+
+    

@@ -8,6 +8,7 @@
     ((uint16) (((b&0xF8) << 5) | ((r&0xF8) << 0) | (g >> 5) | ((g&0xFC) << 11)))
 #define RGB565(r,g,b)       RGB565LE(r,g,b)
 
+#define DEFCOLOR                        (-1)
 #define MAROON                          RGB565(128, 0, 0)
 #define DARK_RED                        RGB565(139, 0, 0)
 #define BROWN                           RGB565(165, 42, 42)

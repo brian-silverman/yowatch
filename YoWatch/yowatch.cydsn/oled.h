@@ -3,7 +3,11 @@
 
 #include <project.h>
 
+#define SCREEN_WIDTH    128
+#define SCREEN_HEIGHT   96
+
 void DisplayInit();
+
 void DisplayRect(
     uint32 x,
     uint32 y,
@@ -18,13 +22,12 @@ void DisplayFill(
     uint16 color
     );
 
-void DisplayText(
-    char * text,
-    uint32 x,
-    uint32 y,
-    int font,
-    int fgcolor,
-    int bgcolor
+void DisplayBitmap(
+    uint8 * buf,
+    int x1,
+    int y1,
+    int x2,
+    int y2
     );
 
 #endif

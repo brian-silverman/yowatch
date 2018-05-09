@@ -15,6 +15,11 @@ struct FONT_CHAR {
 
 extern const struct FONT_CHAR *fonts[MAX_FONTS];
 
+void GetTextDimensions(
+    char * s,
+    int font,
+    int * width,
+    int * height
+    );
+
 #endif
-
-

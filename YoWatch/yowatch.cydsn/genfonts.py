@@ -6,7 +6,7 @@ from glob import glob
 from functools import partial
 import contextlib
 
-C_FILE = "fonts/fonts.c"
+C_FILE = "fonts/_fonts.c"
 H_FILE = "fonts/_fonts.h"
 
 with contextlib.suppress(FileNotFoundError):
