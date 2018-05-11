@@ -18,18 +18,15 @@
 //
 // Get pixel width/height of string for a given font
 //
-// @param text         string to get width/height of.  Can be NULL if getting only
+// @param text      string to get width/height of.  Can be NULL if getting only
 //                  height.
 // @param font      font
-// @param width     optional output width.  Requires valid string /text/.
-// @param height    output height.  Does not require string /text/.  Currently
-//                  uses height of first char - assumes fixed height fonts.
+// @param r         Required output RECT.  Only width/height are set.
 //
 void GetTextDimensions(
     char * text,
     int font,
-    int * width,
-    int * height
+    RECT * r
     )
 {
     const struct FONT_CHAR * pfont = fonts[font];
@@ -51,7 +48,7 @@ void GetTextDimensions(
         _width--;
     }
 
-    if (width) *width = _width;
-    if (height) *height = _height;
+    r->width = _width;
+    r->height = _height;
 }
 

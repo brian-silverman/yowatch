@@ -3,6 +3,7 @@
 
 #include <project.h>
 #include "fonts/_fonts.h"
+#include "rect.h"
 
 struct FONT_CHAR {
     const uint16 * image;
@@ -12,14 +13,14 @@ struct FONT_CHAR {
 
 #define MAX_CHARS 128
 #define INTER_CHAR_SPACING 1
+#define INTER_LINE_SPACING 1
 
 extern const struct FONT_CHAR *fonts[MAX_FONTS];
 
 void GetTextDimensions(
     char * s,
     int font,
-    int * width,
-    int * height
+    RECT * r
     );
 
 #endif

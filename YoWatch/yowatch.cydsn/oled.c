@@ -17,6 +17,7 @@
 #include "printf.h"
 #include "spi.h"
 #include "assert.h"
+#include "colors.h"
 
 #define STATUS_BAR_HEIGHT   7   // 5x5 font plus top/bottom pixel
 #define STATUS_BAR_WIDTH    SCREEN_WIDTH
@@ -218,8 +219,8 @@ void DisplayInit()
 }
 
 void DisplayRect(
-    uint32 x,
-    uint32 y,
+    uint32 x1,
+    uint32 y1,
     uint32 width,
     uint32 height,
     uint16 color
@@ -228,8 +229,16 @@ void DisplayRect(
     int i;
     int pixels = width * height;
 
-    SET_COLUMN_ADDRESS(x, x + width - 1);
-    SET_ROW_ADDRESS(y, y + height - 1);
+    uint32 x2 = x1 + width - 1;
+    uint32 y2 = y1 + height - 1;
+
+    assert(x1 < SCREEN_WIDTH);
+    assert(x2 < SCREEN_WIDTH);
+    assert(y1 < SCREEN_HEIGHT);
+    assert(y2 < SCREEN_HEIGHT);
+
+    SET_COLUMN_ADDRESS(x1, x2);
+    SET_ROW_ADDRESS(y1, y2);
     WRITE_RAM_COMMAND();
 
     //
@@ -286,18 +295,23 @@ void DisplayFill(
 
 void DisplayErase()
 {
-    DisplayFill(0x0000);
+    DisplayFill(BLACK);
 }
 
 void DisplayBitmap(
     uint8 * buf,
-    int x1,
-    int y1,
-    int x2,
-    int y2
+    uint32 x1,
+    uint32 y1,
+    uint32 x2,
+    uint32 y2
     )
 {
     int width, height;
+
+    assert(x1 < SCREEN_WIDTH);
+    assert(x2 < SCREEN_WIDTH);
+    assert(y1 < SCREEN_HEIGHT);
+    assert(y2 < SCREEN_HEIGHT);
 
     SET_COLUMN_ADDRESS(x1, x2);
     SET_ROW_ADDRESS(y1, y2);

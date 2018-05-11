@@ -19,14 +19,14 @@
 // Time given func by running /runs/ times (if given, else DEFAULT_RUNS).
 // Print the average time per run.
 //
-void TimeIt(
+void TimeItAndPrint(
     void (*func)(),
     int runs
     )
 {
     int msecs;
 
-    if (runs == 0) {
+    if (runs <= 0) {
         runs = DEFAULT_RUNS;
     }
 
@@ -51,6 +51,39 @@ void TimeIt(
         xprintf("TIMEIT: %d microseconds per run.\r\n", (msecs * 1000) / runs);
     } else {
         xprintf("TIMEIT DONE: ERROR timer overflow - test too long\r\n");
+    }
+}
+
+//
+// Time given func by running /runs/ times (if given, else DEFAULT_RUNS).
+//
+// @return average time in microseconds, -1 on overflow
+//
+int TimeIt(
+    void (*func)(),
+    int runs
+    )
+{
+    int msecs;
+
+    if (runs <= 0) {
+        runs = DEFAULT_RUNS;
+    }
+
+    TimerMillisec_Start();
+    TimerMillisec_Stop();
+    TimerMillisec_WriteCounter(0);
+
+    TimerMillisec_Enable();
+    for (int i = 0; i < runs; i++) {
+        func();
+    }
+    msecs = TimerMillisec_ReadCounter();
+
+    if (TimerMillisec_ReadStatus() & TimerMillisec_STATUS_RUNNING) {
+        return (int) ((unsigned long long) msecs * 1000 / (unsigned long long) runs);
+    } else {
+        return -1;
     }
 }
 

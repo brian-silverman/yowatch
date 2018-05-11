@@ -2,9 +2,8 @@
 #define _OLED_H_
 
 #include <project.h>
-
-#define SCREEN_WIDTH    128
-#define SCREEN_HEIGHT   96
+#include "display.h"
+#include "rect.h"
 
 void DisplayInit();
 
@@ -24,10 +23,10 @@ void DisplayFill(
 
 void DisplayBitmap(
     uint8 * buf,
-    int x1,
-    int y1,
-    int x2,
-    int y2
+    uint32 x1,
+    uint32 y1,
+    uint32 x2,
+    uint32 y2
     );
 
 #endif

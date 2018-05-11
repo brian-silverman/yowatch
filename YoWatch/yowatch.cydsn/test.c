@@ -56,6 +56,13 @@ int fail = 0;
 #define TEST_ASSERT_INT_EQ(val1, val2) \
     testAssertFails += _TestAssertIntEq(val1, val2, #val1, #val2, TEST_VERBOSE, __FILE__, __LINE__)
 
+#define TEST_ASSERT_PRINT(assert, args...) \
+    { \
+        int fail = _TestAssert(assert, #assert, TEST_VERBOSE, __FILE__, __LINE__); \
+        testAssertFails += fail; \
+        if (fail) xprintf("\t" args); \
+    }
+
 #define TEST_RETURN \
     { \
         if (testAssertFails) xprintf("\r\n"); \
@@ -92,7 +99,7 @@ int _TestAssertIntEq(
 {
     int assertion = val1 == val2;
     if (!assertion || verbose) {
-        xprintf("\t%s(%s == %s), (%d == %d) @ %s, %d\r\n", 
+        xprintf("\t%s(%s == %s), (%d == %d) @ %s, %d\r\n",
             assertion ? "PASS" : "FAIL", val1Str, val2Str, val1, val2, file, line);
     }
     return !assertion;
@@ -236,7 +243,7 @@ int TestSerialRamWriteRead()
         memset(pbuf2, 0, SERIAL_RAM_BUFSIZE);
         for (j = 0; j <= SERIAL_RAM_BUFSIZE/sizeof(uint32); j++) {
             // Arbitrary different values on each iteration
-            ((uint32 *) pbuf1)[j] = i*SERIAL_RAM_BUFSIZE+j; 
+            ((uint32 *) pbuf1)[j] = i*SERIAL_RAM_BUFSIZE+j;
         }
         ret = SerialRamWriteBlocking(pbuf1, ramAddress, SERIAL_RAM_BUFSIZE);
         TEST_ASSERT(ret == 0);
@@ -578,6 +585,36 @@ int TestMicDump()
 // DISPLAY FUNCTIONS
 //
 
+int TestDisplayEraseSpeed()
+{
+    TEST_INIT;
+
+    int usecs = TimeIt(DisplayErase, 30);
+    TEST_ASSERT_PRINT(usecs < 26000, "usecs = %d", usecs);
+
+    TEST_RETURN;
+}
+
+void FillWithBytesSame() { DisplayFill(0xFEFE); }
+void FillWithBytesDifferent() { DisplayFill(0xFEDC); }
+int TestDisplayFillSpeed()
+{
+    TEST_INIT;
+    int usecs;
+
+    //
+    // DisplayFill() should take almost exactly the same as DisplayErase(), if
+    // the color's high/low bytes are identical (due to an optimization).  If
+    // not, then it takes slightly longer.
+    //
+    usecs = TimeIt(FillWithBytesSame, 30);
+    TEST_ASSERT_PRINT(usecs < 26000, "usecs = %d", usecs);
+    usecs = TimeIt(FillWithBytesDifferent, 30);
+    TEST_ASSERT_PRINT(usecs < 37000, "usecs = %d", usecs);
+
+    TEST_RETURN;
+}
+
 int TestDisplayRgbColors()
 {
     TEST_INIT;
@@ -606,17 +643,171 @@ int TestDisplayRgbColors()
     TEST_RETURN;
 }
 
+int TestDoRectsIntersect()
+{
+    TEST_INIT;
+
+    // null rectangles
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 0, 0}, (RECT) {0, 0, 0, 0}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 0, 0}, (RECT) {10, 10, 0, 0}));
+
+    // Invalid height width
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, -1, -1}, (RECT) {0, 0, -1, -1}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, -1, -1}, (RECT) {10, 10, -1, -1}));
+
+    // 10x10 Corners just missing
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {10, 10, 10, 10}));
+    // 10x10 Corners overlapping by 1 pixel
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {9, 9, 10, 10}));
+    // 10x10 half side overlapping by 1 pixel
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {9, 5, 10, 10}));
+    // 10x10 full side overlapping by 1 pixel
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {9, 0, 10, 10}));
+    // 10x10 heavy overlap
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {4, 4, 10, 10}));
+    // 10x10 same rect
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {0, 0, 10, 10}));
+    // 10x10, rect below
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {0, 20, 10, 10}));
+    // 10x10, rect to the right
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 0, 10, 10}));
+    // 10x10, rect to the right and below
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 20, 10, 10}));
+    
+    // Same as above section, rect1/rect2 flipped
+    TEST_ASSERT(! DoRectsIntersect((RECT) {10, 10, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {9, 9, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {9, 5, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {9, 0, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {4, 4, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 20, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {20, 0, 10, 10}, (RECT) {0, 0, 10, 10}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {20, 20, 10, 10}, (RECT) {0, 0, 10, 10}));
+
+    // Same as original section, for bigger width/height
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {20, 30, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {19, 29, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {19, 15, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {19, 0, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {10, 15, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {0, 0, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {0, 40, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {40, 0, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 20, 30}, (RECT) {40, 40, 40, 50}));
+
+    // Same as above section, for offset origin
+    TEST_ASSERT(! DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {120, 130, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {119, 129, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {119, 115, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {119, 100, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {110, 115, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {100, 100, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {100, 140, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {140, 100, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {100, 100, 20, 30}, (RECT) {140, 140, 40, 50}));
+
+    // Same as above section, negative origins
+    TEST_ASSERT(! DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-30, -20, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-31, -21, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-31, -35, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-31, -50, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-40, -35, 40, 50}));
+    TEST_ASSERT(DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-50, -50, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-50, -10, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-10, -50, 40, 50}));
+    TEST_ASSERT(! DoRectsIntersect((RECT) {-50, -50, 20, 30}, (RECT) {-10, -10, 40, 50}));
+
+    TEST_RETURN;
+}
+
+int TestRectIntersection()
+{
+    TEST_INIT;
+
+    RECT r;
+
+    // null rect
+    r = RectIntersection((RECT) {0, 0, 0, 0}, (RECT) {0, 0, 0, 0});
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 0 && r.height == 0); 
+
+    // equal rects
+    r = RectIntersection((RECT) {10, 20, 30, 40}, (RECT) {10, 20, 30, 40});
+    TEST_ASSERT(r.x == 10 && r.y == 20 && r.width == 30 && r.height == 40); 
+
+    // simple rects overlapped
+    r = RectIntersection((RECT) {0, 0, 10, 10}, (RECT) {5, 5, 50, 50});
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+    // swapped args
+    r = RectIntersection((RECT) {5, 5, 50, 50}, (RECT) {0, 0, 10, 10});
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+
+    // negative rect
+    r = RectIntersection((RECT) {-10, -20, 15, 25}, (RECT) {0, 0, 30, 10});
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 5 && r.height == 5); 
+
+    // rect in rect
+    r = RectIntersection((RECT) {10, 20, 100, 120}, (RECT) {30, 40, 10, 20});
+    TEST_ASSERT(r.x == 30 && r.y == 40 && r.width == 10 && r.height == 20); 
+
+    TEST_RETURN;
+}
+
+int TestExpandedRect()
+{
+    TEST_INIT;
+
+    RECT r1 = {10, 11, 12, 13};
+    RECT r2;
+
+    r2 = ExpandedRect(r1, 0);
+    TEST_ASSERT(r2.x == 10 && r2.y == 11 && r2.width == 12 && r2.height == 13); 
+    r2 = ExpandedRect(r1, 1);
+    TEST_ASSERT(r2.x == 9 && r2.y == 10 && r2.width == 14 && r2.height == 15); 
+    r2 = ExpandedRect(r1, 5);
+    TEST_ASSERT(r2.x == 5 && r2.y == 6 && r2.width == 22 && r2.height == 23); 
+
+    TEST_RETURN;
+}
+
+void CenteredText(
+    char * s,
+    int y,
+    int border
+    )
+{
+    const int font = FONT_5X8;
+
+    if (border < 0) {
+        border = 2;
+    }
+
+    RECT textRect;
+    GetTextDimensions(s, font, &textRect);
+    RECT r = (RECT) {
+        (SCREEN_WIDTH - textRect.width) / 2, 
+        y >= 0 ? y : (SCREEN_HEIGHT - textRect.height) / 2,
+        textRect.width,
+        textRect.height
+    };
+
+
+    RECT borderRect = ExpandedRect(r, border);
+    DrawRect(borderRect, BLACK);
+    DrawText(s, r.x, r.y, font, WHITE, BLACK);
+}
+
 void TestDisplayUpperLeftCorner()
 {
     int font = FONT_5X5;
     const char * text[] = { "UPPER", "LEFT", "CORNER" };
-    int fontHeight;
+    RECT r;
 
     DisplayErase();
 
-    GetTextDimensions(NULL, font, NULL, &fontHeight);
+    GetTextDimensions(NULL, font, &r);
     for (int line = 0; line < ARRAY_SIZEOF(text); line++) {
-        DrawText((char *) text[line], 0, (line + 1) * (fontHeight + 1), font, WHITE, BLACK);
+        DrawText((char *) text[line], 0, line * (r.height + 1), font, WHITE, BLACK);
     }
     CyDelay(MTEST_DELAY_FAST);
 }
@@ -626,23 +817,11 @@ void TestDisplayFill(
     int color
     )
 {
-    int font = FONT_5X8;
-    const int BORDER = 2;
-    int textHeight;
-    int textWidth;
-    char s[32];
-
-    sprintf(s, "%s FILL", colorName);
-
-    GetTextDimensions(s, font, &textWidth, &textHeight);
-    int left = (SCREEN_WIDTH - textWidth) / 2;
-    int top = (SCREEN_HEIGHT - textHeight) / 2;
-    int right = left + textWidth - 1;
-    int bottom = top + textHeight - 1;
-
     DisplayFill(color);
-    DrawRect(left - BORDER, top - BORDER, right + BORDER, bottom + BORDER, 0);
-    DrawText(s, left, bottom, font, WHITE, BLACK);
+
+    char s[32];
+    sprintf(s, "%s FILL", colorName);
+    CenteredText(s, -1, -1);
 
     CyDelay(MTEST_DELAY_FAST);
 }
@@ -662,7 +841,6 @@ void TestDrawLine()
 void TestDrawRect()
 {
     // OOB
-    // Border width
     // Colors
     // Overlapping
     // Points may be flipped
@@ -684,39 +862,98 @@ void TestDisplayScrollDown()
     CyDelay(MTEST_DELAY);
 }
 
-void TestTextBox()
+void TestTextBoxFullScreen()
 {
-#if 0
-    int fgColor = 0;
-    int bgColor = 0;
-    int shiftUp = 0;
+    int shiftUp = 4;
     int justify = 0;
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
     char * lines[] = {
-        "This is the first line",
-        "Second line",
-        "This line is long 1234567890",
-        "Four",
-        "Five",
-        "Six",
-        "Seven",
-        "Eight",
-        "Nine",
-        "Ten",
-        "Eleven",
-        "Twelve",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
+        "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
+        "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+        "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+        "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH",
+        "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII",
+        "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ",
+        "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
     };
 
-    // Multiple text boxes
-    // Overlapping
-    // OOB
     //
-    //DrawTextBox(lines, x, y, width, height, shiftUp, justify, fgColor, bgColor);
+    // Title
+    //
+    DisplayErase();
+
+    DrawTextBox(
+        lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, shiftUp, justify, FONT_5X8, WHITE, BLACK
+        );
+
+    CenteredText("DrawTextBox()", 35, 4);
+    CenteredText("COVERING SCREEN", 50, 4);
+
     CyDelay(MTEST_DELAY);
-#endif
+}
+
+void TestTextBox()
+{
+    RECT r;
+    RECT borderRect;
+    char * llines[] = {
+        "Right",
+        "Justified",
+        "OOB",
+        "TextBox",
+        "0123456789ABCDEF",
+        "0123456789ABCDEF",
+        "0123456789ABCDEF",
+        "0123456789ABCDEF",
+    };
+    char * clines[] = {
+        "Center",
+        "Justified",
+        "OOB Box",
+        "0123456789ABCDEF",
+        "0123456789ABCDEF",
+        "0123456789ABCDEF",
+    };
+    char * rlines[] = {
+        "Left",
+        "Justified",
+        "TextBox",
+    };
+
+    //
+    // Title
+    //
+    DisplayErase();
+    CenteredText("Overlap'd TextBoxes", 0, 0);
+
+    //
+    // Center Justified Text Box
+    //
+    r = (RECT) {30, 55, 70, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, GREEN);
+    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, CENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Left Text Box (Right Justified)
+    //
+    r = (RECT) {-20, 30, 60, 50};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, RED);
+    DrawTextBox(llines, ARRAY_SIZEOF(llines), r, 0, RIGHT_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Right Text Box (Left Justified)
+    //
+    r = (RECT) {80, 20, 46, 50};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, BLUE);
+    DrawTextBox(rlines, ARRAY_SIZEOF(rlines), r, 0, LEFT_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY);
 }
 
 void TestTextBoxScrolling()
@@ -724,13 +961,32 @@ void TestTextBoxScrolling()
     // Full screen scrolling, full text
 }
 
-void TestDisplayRect()
+void TestColors()
 {
-    int i;
+    RECT r = {0, 0, 8, SCREEN_HEIGHT};
+
     DisplayErase();
-    for (i = 0; i < 16; i++) {
-        DisplayRect(8*i, 0, 8, 96, 1 << i);
+
+    // RED
+    for (int i = 0, intensity = 0x80; i < 5; i++, intensity >>= 1) {
+        DrawRect(r, RGB565(intensity, 0x00, 0x00));
+        r.x += 8;
     }
+
+    // GREEN
+    for (int i = 0, intensity = 0x80; i < 6; i++, intensity >>= 1) {
+        DrawRect(r, RGB565(0x00, intensity, 0x00));
+        r.x += 8;
+    }
+
+    // BLUE
+    for (int i = 0, intensity = 0x80; i < 5; i++, intensity >>= 1) {
+        DrawRect(r, RGB565(0x00, 0x00, intensity));
+        r.x += 8;
+    }
+
+    CenteredText("RGB COLOR BARS", -1, -1);
+
     CyDelay(MTEST_DELAY);
 }
 
@@ -740,16 +996,16 @@ void TestFont(
 {
     const char LINE_LEN = 16;
     char s[LINE_LEN+1];
-    int fontHeight;
+    RECT r;
 
     DisplayErase();
 
-    GetTextDimensions(NULL, font, NULL, &fontHeight);
+    GetTextDimensions(NULL, font, &r);
     for (int line = 0; line < 128/LINE_LEN; line++) {
         for (int j = 0; j < LINE_LEN; j++) {
             s[j] = line * LINE_LEN + j;
         }
-        DrawText(s, 0, (line + 1) * (fontHeight + 1), font, WHITE, BLACK);
+        DrawText(s, 0, line * (r.height + 1), font, WHITE, BLACK);
     }
 
     CyDelay(MTEST_DELAY);
@@ -758,9 +1014,7 @@ void TestFont(
 void TestDrawText()
 {
     int font = FONT_5X8;
-    int textHeight;
-    int textWidth;
-    int x, y;
+    RECT r;
     char * s;
 
     DisplayErase();
@@ -768,33 +1022,32 @@ void TestDrawText()
     //
     // Title
     //
-    x = 10;
-    y = 20;
-    DrawText("DrawText()", x, y, font, WHITE, BLACK);
+    r = (RECT) {10, 10};
+    DrawText("DrawText()", r.x, r.y, font, WHITE, BLACK);
 
     //
     // Bordered text
     //
     s = "Tight red border";
-    GetTextDimensions(s, font, &textWidth, &textHeight);
-    y += 10;
-    DrawRect(x - 1, y - 1, x + textWidth, y + textHeight, RED);
-    y += textHeight - 1;
-    DrawText(s, x, y, font, WHITE, BLACK);
+    GetTextDimensions(s, font, &r);
+    r.y += 10;
+    RECT borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, RED);
+    DrawText(s, r.x, r.y, font, WHITE, BLACK);
 
     //
     // Inverted characters - TBD
     //
-    
+
     //
     // FG/BG colors
     //
-    y = 65;
-    DrawText("RED on GREEN", x, y, font, RED, GREEN);
-    y+= textHeight;
-    DrawText("YELLOW on BLUE", x, y, font, YELLOW, BLUE);
-    y+= textHeight;
-    DrawText("ORANGE on PURPLE", x, y, font, ORANGE, PURPLE);
+    r.y = 55;
+    DrawText("RED on GREEN", r.x, r.y, font, RED, GREEN);
+    r.y += 10;
+    DrawText("YELLOW on BLUE", r.x, r.y, font, YELLOW, BLUE);
+    r.y += 10;
+    DrawText("ORANGE on PURPLE", r.x, r.y, font, ORANGE, PURPLE);
 
     CyDelay(MTEST_DELAY);
 }
@@ -802,37 +1055,53 @@ void TestDrawText()
 void TestDrawTextOobEdges()
 {
     int font = FONT_5X8;
-    int textHeight;
-    int textWidth;
-    char * s;
 
     DisplayErase();
 
     //
     // Title
     //
-    DrawText("DrawText() OOB", 20, 40, font, WHITE, BLACK);
-    DrawText("  AT EDGES", 20, 50, font, WHITE, BLACK);
+    CenteredText("DrawText()", 30, -1);
+    CenteredText("OOB", 40, -1);
+    CenteredText("AT EDGES", 50, -1);
+    CenteredText("12345", 60, -1);
 
     //
-    // OOB at edges
+    // OOB coordinates
     //
-    s = "12345";
-    GetTextDimensions(s, font, &textWidth, &textHeight);
-    DrawText(s, (SCREEN_WIDTH - textWidth)/2, textHeight/2, font, WHITE, BLACK);
-    DrawText(s, (SCREEN_WIDTH - textWidth)/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
-    DrawText(s, -textWidth/2, (SCREEN_HEIGHT - textHeight)/2, font, WHITE, BLACK);
-    DrawText(s, SCREEN_WIDTH - textWidth/2, (SCREEN_HEIGHT - textHeight)/2, font, WHITE, BLACK);
+    char * s = "12345";
+    RECT textRect;
+    GetTextDimensions(s, font, &textRect);
+    int hCenter = (SCREEN_WIDTH - textRect.width)/2;
+    int vCenter = (SCREEN_HEIGHT - textRect.height)/2;
+    int left = -textRect.width/2;
+    int top = -textRect.height/2;
+    int right = SCREEN_WIDTH - textRect.width/2;
+    int bottom = SCREEN_HEIGHT - textRect.height/2;
+
+    //
+    // OOB at top/bottom edge
+    //
+    DrawText(s, hCenter,    top,        font, WHITE, BLACK);
+    DrawText(s, hCenter,    bottom,     font, WHITE, BLACK);
+
+    //
+    // OOB at left/right edge, various shifts
+    //
+    for (int i = -4; i <= 4; i++) {
+        DrawText(s, left + i,  vCenter + i*9, font, WHITE, BLACK);
+        DrawText(s, right + i,  vCenter + i*9, font, WHITE, BLACK);
+    }
 
     //
     // OOB at corners
     //
-    DrawText(s, -textWidth/2, textHeight/2, font, WHITE, BLACK);
-    DrawText(s, -textWidth/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
-    DrawText(s, SCREEN_WIDTH - textWidth/2, textHeight/2, font, WHITE, BLACK);
-    DrawText(s, SCREEN_WIDTH - textWidth/2, SCREEN_HEIGHT + textHeight/2, font, WHITE, BLACK);
-    
-    CyDelay(MTEST_DELAY);
+    DrawText(s, left,       top,        font, WHITE, BLACK);
+    DrawText(s, left,       bottom,     font, WHITE, BLACK);
+    DrawText(s, right,      top,        font, WHITE, BLACK);
+    DrawText(s, right,      bottom,     font, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY_SLOW);
 }
 
 void TestDrawTextOob()
@@ -844,42 +1113,28 @@ void TestDrawTextOob()
     //
     // Title
     //
-    DrawText("DrawText() OOB", 30, 40, font, WHITE, BLACK);
-    DrawText("  SHOULD BE", 30, 50, font, WHITE, BLACK);
-    DrawText("  OTHERWISE", 30, 60, font, WHITE, BLACK);
-    DrawText("    BLANK", 30, 70, font, WHITE, BLACK);
+    CenteredText("DrawText() OOB", 30, -1);
+    CenteredText("SHOULD BE", 40, -1);
+    CenteredText("OTHERWISE", 50, -1);
+    CenteredText("BLANK", 60, -1);
 
-    //
-    // OOB text to draw
-    //
-    int textHeight;
-    int textWidth;
     char * s = "12345";
-    GetTextDimensions(s, font, &textWidth, &textHeight);
 
     //
     // OOB text to the left
     //
     DrawText(s, -100, -100, font, WHITE, BLACK);
     DrawText(s, -100, -4, font, WHITE, BLACK);
-    DrawText(s, -100, 0, font, WHITE, BLACK);
-    DrawText(s, -100, 4, font, WHITE, BLACK);
     DrawText(s, -100, 50, font, WHITE, BLACK);
     DrawText(s, -100, SCREEN_HEIGHT - 4, font, WHITE, BLACK);
-    DrawText(s, -100, SCREEN_HEIGHT, font, WHITE, BLACK);
-    DrawText(s, -100, SCREEN_HEIGHT + 4, font, WHITE, BLACK);
 
     //
     // OOB text to the right
     //
     DrawText(s, 200, -100, font, WHITE, BLACK);
     DrawText(s, 200, -4, font, WHITE, BLACK);
-    DrawText(s, 200, 0, font, WHITE, BLACK);
-    DrawText(s, 200, 4, font, WHITE, BLACK);
     DrawText(s, 200, 50, font, WHITE, BLACK);
     DrawText(s, 200, SCREEN_HEIGHT - 4, font, WHITE, BLACK);
-    DrawText(s, 200, SCREEN_HEIGHT, font, WHITE, BLACK);
-    DrawText(s, 200, SCREEN_HEIGHT + 4, font, WHITE, BLACK);
 
     //
     // OOB text above the top
@@ -903,6 +1158,11 @@ void TestDrawTextOob()
 // Test Suite
 //
 /////////////////////////////////////////////////////////////////////
+
+void test()
+{
+    DrawTextBounded("0123456789ABCDEF", 0, 0, FONT_5X8, WHITE, BLACK, (RECT){0, 0, 100, 100});
+}
 
 void TestSuite()
 {
@@ -931,6 +1191,12 @@ void TestSuite()
     TEST(TestQueueConcurrency());
 
     TEST(TestDisplayRgbColors());
+    TEST(TestDoRectsIntersect());
+    TEST(TestRectIntersection());
+    TEST(TestExpandedRect());
+
+    TEST(TestDisplayEraseSpeed());
+    TEST(TestDisplayFillSpeed());
 
     MTEST(TestDisplayUpperLeftCorner());
     MTEST(TestDisplayFill("RED", RED));
@@ -944,12 +1210,14 @@ void TestSuite()
     MTEST(TestDrawText());
     MTEST(TestDrawTextOobEdges());
     MTEST(TestDrawTextOob());
+    MTEST(TestTextBoxScrolling());
+    MTEST(TestDrawRect());
+    MTEST(TestColors());
+    MTEST(TestTextBoxFullScreen());
+    MTEST(TestTextBox());
 #if 0
     MTEST(TestDrawLine());
-    MTEST(TestDrawRect());
     MTEST(TestDrawImage());
-    MTEST(TestTextBox());
-    MTEST(TestTextBoxScrolling());
     MTEST(TestFont(FONT_5X5));
     MTEST(TestFont(FONT_5X8));
     MTEST(TestDrawStatusBar());
