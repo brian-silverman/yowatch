@@ -826,24 +826,75 @@ void TestDisplayFill(
     CyDelay(MTEST_DELAY_FAST);
 }
 
-void TestDrawLine()
+void TestDrawLineHorzVert()
 {
+    DisplayErase();
+
+    CenteredText("DrawLine() horz/vert", 0, -1);
+
     // Horizontal
+    DrawLine(15, 15, 105, 15, WHITE);
+    DrawLine(20, 20, 100, 20, RED);
+    DrawLine(25, 25, 95, 25, GREEN);
+    DrawLine(30, 30, 90, 30, BLUE);
+
     // Vertical
-    // diagonal
-    // colors
-    // OOB
-    // overlapping
-    // on top of colored rectangle
+    DrawLine(5, 15, 5, 80, WHITE);
+    DrawLine(10, 20, 10, 75, RED);
+    DrawLine(15, 25, 15, 70, GREEN);
+    DrawLine(20, 30, 20, 65, BLUE);
+
+    // on top of colored rectangle, and extending OOB
+    DrawRect((RECT) {50, 50, 40, 40}, RED);
+    DrawLine(40, 60, 100, 60, BLUE);
+    DrawLine(60, 40, 60, 200, GREEN);
+
+    CyDelay(MTEST_DELAY);
+}
+
+void TestDrawLineDiag()
+{
+    DisplayErase();
+
+    CenteredText("DrawLine() diag/OOB", 0, -1);
+
+    int w = 30;
+
+    // draw lines incrementing x
+    int x = 20, y = 20;
+    for (int i = 0; i <= 30; i += 5) DrawLine(x+i,      y,      x+w-i,  y+w,    WHITE);
+
+    // draw lines incrementing x, backwards
+    x = 60, y = 20;
+    for (int i = 0; i <= 30; i += 5) DrawLine(x+w-i,    y+w,    x+i,    y,      RED);
+
+    // draw lines incrementing y
+    x = 20, y = 60;
+    for (int i = 0; i <= 30; i += 5) DrawLine(x,        y+i,    x+w,    y+w-i,  GREEN);
+
+    // draw lines incrementing y, backwards
+    x = 60, y = 60;
+    for (int i = 0; i <= 30; i += 5) DrawLine(x+w,      y+w-i,  x,      y+i,    BLUE);
+
+    // 
+    // OOB lines
+    //
+    DrawLine(100, 120, 130, 0, RED);
+    DrawLine(100, 30, 150, 100, GREEN);
+    DrawLine(125, -30, 125, 200, BLUE);
+
     CyDelay(MTEST_DELAY);
 }
 
 void TestDrawRect()
 {
-    // OOB
-    // Colors
-    // Overlapping
-    // Points may be flipped
+    DisplayErase();
+
+    CenteredText("DrawRect() (R/G/B), OOB", 0, -1);
+
+    DrawRect((RECT) {-50, 50, 100, 100}, RED);
+    DrawRect((RECT) {-50, 60, 200, 20}, GREEN);
+    DrawRect((RECT) {70, 30, 40, 200}, BLUE);
     CyDelay(MTEST_DELAY);
 }
 
@@ -905,17 +956,18 @@ void TestTextBox()
         "OOB",
         "TextBox",
         "0123456789ABCDEF",
-        "0123456789ABCDEF",
-        "0123456789ABCDEF",
-        "0123456789ABCDEF",
+        "123",
+        "123",
+        "123",
     };
     char * clines[] = {
         "Center",
         "Justified",
         "OOB Box",
         "0123456789ABCDEF",
-        "0123456789ABCDEF",
-        "0123456789ABCDEF",
+        "123",
+        "123",
+        "123",
     };
     char * rlines[] = {
         "Left",
@@ -959,6 +1011,45 @@ void TestTextBox()
 void TestTextBoxScrolling()
 {
     // Full screen scrolling, full text
+    char * lines[] = {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+        "0000000000000000000000000000000000000000",
+        "1111111111111111111111111111111111111111",
+        "2222222222222222222222222222222222222222",
+        "3333333333333333333333333333333333333333",
+        "44444 ----------444444444444444444444444",
+        "55555 DISPLAY   555555555555555555555555",
+        "66666 FLICKER   666666666666666666666666",
+        "77777 SHOULD BE 777777777777777777777777",
+        "88888 MINIMAL   888888888888888888888888",
+        "99999 ----------999999999999999999999999",
+        "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+        "LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL",
+        "MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM",
+        "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN",
+        "OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO",
+        "PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP",
+        "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ",
+        "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+        "SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+    };
+
+    //
+    // Title
+    //
+    DisplayErase();
+
+    for (int shiftUp = 0; shiftUp < SCREEN_HEIGHT; shiftUp++) {
+        DrawTextBox(
+            lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, 
+            shiftUp, LEFT_JUSTIFIED, FONT_5X8, WHITE, BLACK
+            );
+        CyDelay(10);
+    }
+
 }
 
 void TestColors()
@@ -991,6 +1082,7 @@ void TestColors()
 }
 
 void TestFont(
+    char * fontName,
     int font
     )
 {
@@ -1000,12 +1092,16 @@ void TestFont(
 
     DisplayErase();
 
+    CenteredText(fontName, 0, -1);
+
     GetTextDimensions(NULL, font, &r);
     for (int line = 0; line < 128/LINE_LEN; line++) {
-        for (int j = 0; j < LINE_LEN; j++) {
+        int j;
+        for (j = 0; j < LINE_LEN; j++) {
             s[j] = line * LINE_LEN + j;
         }
-        DrawText(s, 0, line * (r.height + 1), font, WHITE, BLACK);
+        s[j] = '\0';
+        DrawText(s, 0, 20 + line * (r.height + 1), font, WHITE, BLACK);
     }
 
     CyDelay(MTEST_DELAY);
@@ -1104,7 +1200,7 @@ void TestDrawTextOobEdges()
     CyDelay(MTEST_DELAY_SLOW);
 }
 
-void TestDrawTextOob()
+void TestDrawTextOobOffScreen()
 {
     int font = FONT_5X8;
 
@@ -1161,7 +1257,21 @@ void TestDrawTextOob()
 
 void test()
 {
-    DrawTextBounded("0123456789ABCDEF", 0, 0, FONT_5X8, WHITE, BLACK, (RECT){0, 0, 100, 100});
+    char * lines[] = {
+        "AAAAAAAAAAAAAAAAAAAAAAA",
+        "BBBBBBBBBBBBBBBBBBBBBBB",
+        "CCCCCCCCCCCCCCCCCCCCCCC",
+        "DDDDDDDDDDDDDDDDDDDDDDD",
+        "EEEEEEEEEEEEEEEEEEEEEEE",
+        "FFFFFFFFFFFFFFFFFFFFFFF",
+        "GGGGGGGGGGGGGGGGGGGGGGG",
+        "HHHHHHHHHHHHHHHHHHHHHHH",
+        "IIIIIIIIIIIIIIIIIIIIIII",
+        "JJJJJJJJJJJJJJJJJJJJJJJ",
+        "KKKKKKKKKKKKKKKKKKKKKKK",
+    };
+
+    DrawTextBox(lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, 0, 0, FONT_5X8, WHITE, BLACK);
 }
 
 void TestSuite()
@@ -1202,24 +1312,20 @@ void TestSuite()
     MTEST(TestDisplayFill("RED", RED));
     MTEST(TestDisplayFill("BLUE", BLUE));
     MTEST(TestDisplayFill("GREEN", GREEN));
-#if 0
-    MTEST(TestDisplayScrollUp());
-    MTEST(TestDisplayScrollDown());
-#endif
-
     MTEST(TestDrawText());
     MTEST(TestDrawTextOobEdges());
-    MTEST(TestDrawTextOob());
-    MTEST(TestTextBoxScrolling());
-    MTEST(TestDrawRect());
+    MTEST(TestDrawTextOobOffScreen());
     MTEST(TestColors());
     MTEST(TestTextBoxFullScreen());
+    MTEST(TestFont("FONT_5X5", FONT_5X5));
+    MTEST(TestFont("FONT_5X8", FONT_5X8));
+    MTEST(TestTextBoxScrolling());
     MTEST(TestTextBox());
+    MTEST(TestDrawLineHorzVert());
+    MTEST(TestDrawLineDiag());
+    MTEST(TestDrawRect());
 #if 0
-    MTEST(TestDrawLine());
     MTEST(TestDrawImage());
-    MTEST(TestFont(FONT_5X5));
-    MTEST(TestFont(FONT_5X8));
     MTEST(TestDrawStatusBar());
 #endif
 

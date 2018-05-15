@@ -64,7 +64,7 @@ static int CharImageCopy(
     // memcpy() it.
     //
     if (bound.width >= p->width && bound.height >= p->height && bound.x == 0 && bound.y == 0
-        && fgColor == WHITE && bgColor == BLACK) 
+        && fgColor == WHITE && bgColor == BLACK)
     {
         pixels = (p->width * p->height);
         memcpy(dest, p->image, pixels * 2);
@@ -237,16 +237,16 @@ void DrawTextBounded(
     }
 
 
-    // 
+    //
     // DisplayBitmap.  Note: the number of pixels written to the displayBuf
     // should be identical to the area of the boundedTextRect - assert this.
     //
     assert(dest - (uint16 *) displayBuf == boundedTextRect.width * boundedTextRect.height);
     DisplayBitmap(
-        displayBuf, 
-        boundedTextRect.x, 
-        boundedTextRect.y, 
-        boundedTextRect.x + boundedTextRect.width - 1, 
+        displayBuf,
+        boundedTextRect.x,
+        boundedTextRect.y,
+        boundedTextRect.x + boundedTextRect.width - 1,
         boundedTextRect.y + boundedTextRect.height - 1
         );
 }
@@ -292,10 +292,16 @@ void DrawTextBox(
     int bgColor
     )
 {
+    RECT r, r2;
     int lineX = box.x;
     int lineY = box.y - shiftUp;
 
-    DrawRect(box, bgColor);
+    //
+    // For each line draw the text, and also clear any non-text areas.
+    // Non-text areas must be cleared separately (as opposed to clearing the
+    // whole text box beforehand) to avoid flicker - display is not double
+    // buffered.
+    //
     for (int i = 0; i < num; i++) {
         RECT textRect = box;
         GetTextDimensions(lines[i], font, &textRect);
@@ -303,19 +309,59 @@ void DrawTextBox(
         switch (justify) {
             case LEFT_JUSTIFIED:
                 lineX = box.x;
+
+                // Erase BG to right of text line
+                r = (RECT) {
+                    lineX + textRect.width, lineY, box.width - textRect.width, textRect.height};
+                r = RectIntersection(r, box);
+                DrawRect(r, bgColor);
                 break;
+
             case RIGHT_JUSTIFIED:
                 lineX = box.x + box.width - textRect.width;
+
+                // Erase BG to left of text line
+                r = (RECT) {box.x, lineY, box.width - textRect.width, textRect.height};
+                r = RectIntersection(r, box);
+                DrawRect(r, bgColor);
                 break;
+
             case CENTER_JUSTIFIED:
                 lineX = box.x + (box.width - textRect.width)/2;
+
+                // Erase BG to left of text line
+                r = (RECT) {box.x, lineY, lineX - box.x, textRect.height};
+                r = RectIntersection(r, box);
+                DrawRect(r, bgColor);
+
+                // Erase BG to right of text line
+                r2 = (RECT) {
+                    lineX + textRect.width,
+                    lineY,
+                    (box.x + box.width) - (lineX + textRect.width),
+                    textRect.height};
+                r2 = RectIntersection(r2, box);
+                DrawRect(r2, bgColor);
                 break;
+
             default:
                 assert(0);
         }
         DrawTextBounded(lines[i], lineX, lineY, font, fgColor, bgColor, box);
-        lineY += textRect.height + INTER_LINE_SPACING;
+        lineY += textRect.height;
+
+        // Erase space between lines
+        r = (RECT) {box.x, lineY, box.width, INTER_LINE_SPACING};
+        r = RectIntersection(r, box);
+        DrawRect(r, bgColor);
+        lineY += INTER_LINE_SPACING;
     }
+
+    // Erase the rest of the text box
+    r = (RECT) {box.x, lineY, box.width, box.y + box.height - lineY};
+    r = RectIntersection(r, box);
+    DrawRect(r, bgColor);
+    lineY += INTER_LINE_SPACING;
 }
 
 void DrawPoint(
@@ -324,5 +370,109 @@ void DrawPoint(
     int color
     )
 {
+    if (x < 0 || x >= SCREEN_WIDTH) return;
+    if (y < 0 || y >= SCREEN_HEIGHT) return;
     DisplayRect(x, y, 1, 1, color);
+}
+
+//
+// Diagonal line, shallow slope (Bresenham's line algorithm via Wikipedia)
+//
+static void DrawLineLow(
+    int x1,
+    int y1, 
+    int x2,
+    int y2,
+    int color
+    )
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int yi = 1;
+    if (dy < 0) {
+        yi = -1;
+        dy = -dy;
+    }
+    int D = 2*dy - dx;
+    int y = y1;
+
+    for (int x = x1; x <= x2; x++) {
+        DrawPoint(x, y, color);
+        if (D > 0) {
+            y = y + yi;
+            D = D - 2*dx;
+        }
+        D = D + 2*dy;
+    }
+}
+
+//
+// Diagonal line, steep slope (Bresenham's line algorithm via Wikipedia)
+//
+static void DrawLineHigh(
+    int x1,
+    int y1, 
+    int x2,
+    int y2,
+    int color
+    )
+{
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int xi = 1;
+    if (dx < 0) {
+        xi = -1;
+        dx = -dx;
+    }
+    int D = 2*dx - dy;
+    int x = x1;
+
+    for (int y = y1; y <= y2; y++) {
+        DrawPoint(x, y, color);
+        if (D > 0) {
+            x = x + xi;
+            D = D - 2*dy;
+        }
+        D = D + 2*dx;
+    }
+}
+
+void DrawLine(
+    int x1,
+    int y1,
+    int x2,
+    int y2,
+    int color
+    )
+{
+    if (x1 == x2) {
+        //
+        // Vertical line
+        //
+        DrawRect((RECT) {x1, MIN(y1, y2), 1, ABS(y2 - y1) + 1}, color);
+
+    } else if (y1 == y2) {
+        //
+        // Horizontal line
+        //
+        DrawRect((RECT) {MIN(x1, x2), y1, ABS(x2 - x1) + 1, 1}, color);
+
+    } else {
+        //
+        // Diagonal line (Bresenham's line algorithm via Wikipedia)
+        //
+        if (ABS(y2 - y1) < ABS(x2 - x1)) {
+            if (x1 > x2) {
+                DrawLineLow(x2, y2, x1, y1, color);
+            } else {
+                DrawLineLow(x1, y1, x2, y2, color);
+            }
+        } else {
+            if (y1 > y2) {
+                DrawLineHigh(x2, y2, x1, y1, color);
+            } else {
+                DrawLineHigh(x1, y1, x2, y2, color);
+            }
+        }
+    }
 }
