@@ -5,4 +5,7 @@ _version.h
 fonts/_fonts.h
 fonts/_fonts.c
 tags
+etc/colors2py*
+etc/colormap.dat
+etc/colormap.h
 

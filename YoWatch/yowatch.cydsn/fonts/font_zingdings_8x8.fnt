@@ -1,3 +1,8 @@
+{
+    'O': WHITE,
+    'x': RED,
+}
+=============================================================================================================================
 OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO
 O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
 O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
@@ -8,22 +13,22 @@ O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | 
 OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO
 
 OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
-O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
+OxxxO | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O | O   O
 OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO | OOOOO
 
-    ||||| O |||| O O ||  O O  |   O   | OO    |  O    ||  OO |||   O ||| O   ||   O   |       ||     ||       |||    ||      
-    ||||| O |||| O O ||  O O  |  OOOO | OO  O | O O   ||  OO |||  O  |||  O  || O O O |   O   ||     ||       |||    ||     O
-    ||||| O |||| O O || OOOOO | O O   |    O  | O O   ||  O  ||| O   |||   O ||  OOO  |   O   ||     ||       |||    ||    O 
-    ||||| O ||||     ||  O O  |  OOO  |   O   |  O    || O   ||| O   |||   O || OOOOO | OOOOO ||     || OOOOO |||    ||   O  
-    ||||| O ||||     || OOOOO |   O O |  O    | O O O ||     ||| O   |||   O ||  OOO  |   O   ||  OO ||       |||    ||  O   
-    |||||   ||||     ||  O O  | OOOO  | O  OO | O  O  ||     |||  O  |||  O  || O O O |   O   ||  OO ||       ||| OO || O    
-    ||||| O ||||     ||  O O  |   O   |    OO |  OO O ||     |||   O ||| O   ||   O   |       ||  O  ||       ||| OO ||      
-    |||||   ||||     ||       |       |       |       ||     |||     |||     ||       |       || O   ||       |||    ||      
+    ||||| O |||| OxO ||  O O  |   O   | OO    |  O    ||  OO |||   O ||| O   ||   O   |       ||     ||       |||    ||      
+    ||||| O |||| OxO ||  O O  |  OOOO | OO  O | O O   ||  OO |||  O  |||  O  || O O O |   O   ||     ||       |||    ||     O
+    ||||| O |||| OxO || OOOOO | O O   |    O  | O O   ||  O  ||| O   |||   O ||  OOO  |   O   ||     ||       |||    ||    O 
+    ||||| O ||||  x  ||  O O  |  OOO  |   O   |  O    || O   ||| O   |||   O || OOOOO | OOOOO ||     || OOOOO |||    ||   O  
+    ||||| O ||||  x  || OOOOO |   O O |  O    | O O O ||     ||| O   |||   O ||  OOO  |   O   ||  OO ||       |||    ||  O   
+    |||||   ||||  x  ||  O O  | OOOO  | O  OO | O  O  ||     |||  O  |||  O  || O O O |   O   ||  OO ||       ||| OO || O    
+    ||||| O ||||  x  ||  O O  |   O   |    OO |  OO O ||     |||   O ||| O   ||   O   |       ||  O  ||       ||| OO ||      
+    |||||   ||||  x  ||       |       |       |       ||     |||     |||     ||       |       || O   ||       |||    ||      
 
  OOO  ||  O  ||  OOO  | OOOOO |    O  | OOOOO |   OOO | OOOOO |  OOO  |  OOO  |||   ||||    ||||    O |       || O    |  OOO 
 O   O || OO  || O   O |     O |   OO  | O     |  O    |     O | O   O | O   O |||   ||||    ||||   O  |       ||  O   | O   O

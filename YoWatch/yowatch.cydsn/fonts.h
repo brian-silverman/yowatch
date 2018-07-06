@@ -23,4 +23,8 @@ void GetTextDimensions(
     RECT * r
     );
 
+int GetFontHeight(
+    int font
+    );
+
 #endif

@@ -39,6 +39,7 @@
 #define CHR_BATTERY_60          't'
 #define CHR_BATTERY_80          'u'
 #define CHR_BATTERY_100         'v'
+#define CHR_INVALID             'Z'
 
 static int8 statusCodes[NUM_STATUSES];
 static int8 notifCodes[NUM_NOTIFS];
@@ -51,7 +52,7 @@ int8 StatusGet(
     )
 {
     assert(IS_NOTIF(code) || IS_STATUS(code));
-    return IS_NOTIF(code) ? notifCodes[code] : statusCodes[code];
+    return IS_NOTIF(code) ? notifCodes[code - FIRST_NOTIF] : statusCodes[code - FIRST_STATUS];
 }
     
 //
@@ -64,9 +65,9 @@ void StatusSet(
 {
     assert(IS_NOTIF(code) || IS_STATUS(code));
     if (IS_NOTIF(code)) {
-        notifCodes[code] = value;
+        notifCodes[code - FIRST_NOTIF] = value;
     } else {
-        statusCodes[code] = value;
+        statusCodes[code - FIRST_STATUS] = value;
     }
 }
 
@@ -114,7 +115,7 @@ char StatusChar(
         case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_60):   return CHR_BATTERY_60;
         case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_80):   return CHR_BATTERY_80;
         case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_100):  return CHR_BATTERY_100;
-        default: return '\0';
+        default: return CHR_INVALID;
     }
 }
 
@@ -125,10 +126,12 @@ void StatusGetString(
     )
 {
     int c = 0;
+    str[0] = 0;
     for (int code = firstCode; code < lastCode; code++) {
         int8 val = StatusGet(code);
         if (val) {
             str[c++] = StatusChar(code, val);
         }
     }
+    str[c] = 0;
 }

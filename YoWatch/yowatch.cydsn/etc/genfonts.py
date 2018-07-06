@@ -4,14 +4,26 @@ from itertools import chain
 import os
 from glob import glob
 from functools import partial
+from itertools import takewhile
+from ast import literal_eval
 import contextlib
 
 C_FILE = "fonts/_fonts.c"
 H_FILE = "fonts/_fonts.h"
+COLOR_NAME_MAP_FILE = "etc/colormap.dat"
 
 with contextlib.suppress(FileNotFoundError):
     os.remove(C_FILE)
     os.remove(H_FILE)
+
+#
+# Read color name map into locals.  This allows the use of, e.g RED, within the
+# code.  "eval" is used (as opposed to "literal_eval") for convenience - not
+# dangerous, as this is code used just for building.
+#
+with open(COLOR_NAME_MAP_FILE) as f:
+    color_name_map = eval(f.read())
+locals().update(color_name_map)
 
 #
 # For each font file, generate C code
@@ -40,10 +52,28 @@ for font_index, font_file in enumerate(glob("fonts/*.fnt")):
     #  OOO  |  OOO  | OOOOO | OOOO  |    O  | OOOO  |  OO
     #
     chars = []
+    print(font_file)
     with open(font_file) as f:
         #
-        # Run through entire file, but add a blank line to the end (we key off the
-        # blank line to assemble the previous row)
+        # First ont or more lines up to a line starting with a few '=' signs is
+        # a dict that maps characters in the font file to pixels colors.  For
+        # example, the default way, as defined above, to map 'O' to WHITE
+        # (0xFFFF) would be:
+        #
+        # {'O':0xFFFF}
+        # ===
+        #
+        color_map_str = ''.join(takewhile(lambda x: not x.startswith('==='), f))
+        if color_map_str.strip():
+            color_map = eval(color_map_str)
+            assert isinstance(color_map, dict)
+        else:
+            color_map = {'O':0xFFFF}
+        color_map[' '] = 0  # space char always means black
+
+        #
+        # Run through rest of the file, but add a blank line to the end (we key
+        # off the blank line to assemble the previous row)
         #
         rows_of_chars = []
         for line in chain(f, ['']):
@@ -64,13 +94,11 @@ for font_index, font_file in enumerate(glob("fonts/*.fnt")):
         assert(len(set(len(line) for line in c)) == 1)
     # Height of each char must be the same
     assert(len(set(len(c) for c in chars)) == 1)
-    # Chars must be composed of only space and 'O'
-    for i, c in enumerate(chars):
+    # Chars must be composed defined in the color_map
+    for c in chars:
         unique_pixel_chars = sorted(set("".join(c)))
-        assert(
-            1 <= len(unique_pixel_chars) <= 2 
-            and ('O' in unique_pixel_chars or ' ' in unique_pixel_chars)
-            )
+        for u in unique_pixel_chars:
+            assert u in color_map
 
     #
     # Make a list, for each char, of the first index where that char was used.
@@ -97,7 +125,7 @@ for font_index, font_file in enumerate(glob("fonts/*.fnt")):
             height = len(chars[i])
             width = len(chars[i][0])
             flatten = (chars[i][h][w] for w in range(width) for h in range(height))
-            data = ",".join("0xFFFF" if pixel=='O' else "0x0000" for pixel in flatten)
+            data = ",".join(hex(color_map[pixel]) for pixel in flatten)
             fprint("static const uint16 {:s}{:02X}[] = {{{:s}}};".format(font_codename, i, data))
 
         #

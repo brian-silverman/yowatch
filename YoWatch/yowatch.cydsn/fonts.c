@@ -52,3 +52,15 @@ void GetTextDimensions(
     r->height = _height;
 }
 
+//
+// Gets font height (assume fixed height fonts)
+//
+int GetFontHeight(
+    int font
+    )
+{
+    RECT r;
+    GetTextDimensions("", font, &r);
+    return r.height;
+}
+

@@ -61,11 +61,11 @@ static int CharImageCopy(
 
     //
     // Optimization: if bound indicates full char is to be copied, and char is
-    // WHITE on BLACK (which is the default sorted in the image), then just
+    // WHITE on BLACK (which is the default colors in the image), then just
     // memcpy() it.
     //
     if (bound.width >= p->width && bound.height >= p->height && bound.x == 0 && bound.y == 0
-        && fgColor == WHITE && bgColor == BLACK)
+        && ((fgColor == WHITE && bgColor == BLACK) || (fgColor == NATIVE && bgColor == NATIVE)))
     {
         pixels = (p->width * p->height);
         memcpy(dest, p->image, pixels * 2);
@@ -80,7 +80,12 @@ static int CharImageCopy(
         int h = bound.height;
         for (int i = 0; i < w; i++) {
             for (int j = 0; j < h; j++) {
-                dest[destIndex++] = p->image[srcIndex++] ? fgColor : bgColor;
+                int pixel = p->image[srcIndex++];
+                if ((pixel && fgColor == NATIVE) || (! pixel && bgColor == NATIVE)) {
+                    dest[destIndex++] = pixel;
+                } else {
+                    dest[destIndex++] = pixel ? fgColor : bgColor;
+                }
                 pixels++;
             }
             srcIndex += xSkip;
@@ -481,6 +486,7 @@ void DrawLine(
 void DrawStatusBar(
     )
 {
+    const int font = FONT_5X8;
     static char lastStatus[NUM_STATUSES + 1];
     static char lastNotif[NUM_NOTIFS + 1];
     static char status[NUM_STATUSES + 1];
@@ -489,5 +495,25 @@ void DrawStatusBar(
     StatusGetString(status, FIRST_STATUS, LAST_STATUS);
     StatusGetString(notif, FIRST_NOTIF, LAST_NOTIF);
 
-    xprintf("%10s %10s\r\n", notif, status);
+    if (strcmp(lastNotif, notif) != 0) {
+        RECT textRect;
+        GetTextDimensions(lastNotif, font, &textRect);
+        textRect.x = 0;
+        textRect.y = 0;
+        char * lines[] = {notif};
+        DrawTextBox(lines, 1, textRect, 0, LEFT_JUSTIFIED, font, WHITE, BLACK);
+        strcpy(lastNotif, notif);
+    }
+    if (strcmp(lastStatus, status) != 0) {
+        RECT textRect;
+        GetTextDimensions(lastStatus, font, &textRect);
+        textRect.x = SCREEN_WIDTH - textRect.width;
+        textRect.y = 0;
+        char * lines[] = {status};
+        DrawTextBox(lines, 1, textRect, 0, RIGHT_JUSTIFIED, font, WHITE, BLACK);
+        strcpy(lastStatus, status);
+    }
+
+    int h = GetFontHeight(font);
+    DrawLine(0, h, SCREEN_WIDTH - 1, h, WHITE);
 }

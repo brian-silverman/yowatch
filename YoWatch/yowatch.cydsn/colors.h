@@ -8,6 +8,7 @@
     ((uint16) (((b&0xF8) << 5) | ((r&0xF8) << 0) | (g >> 5) | ((g&0xFC) << 11)))
 #define RGB565(r,g,b)       RGB565LE(r,g,b)
 
+#define NATIVE                          (-1)
 #define DEFCOLOR                        (-1)
 #define MAROON                          RGB565(128, 0, 0)
 #define DARK_RED                        RGB565(139, 0, 0)
@@ -144,7 +145,7 @@
 #define GRAY                            RGB565(128, 128, 128)
 #define DARK_GRAY                       RGB565(169, 169, 169)
 #define SILVER                          RGB565(192, 192, 192)
-#define LIGHT_GRAYY                     RGB565(211, 211, 211)
+#define LIGHT_GRAY                      RGB565(211, 211, 211)
 #define GAINSBORO                       RGB565(220, 220, 220)
 #define WHITE_SMOKE                     RGB565(245, 245, 245)
 #define WHITE                           RGB565(255, 255, 255)

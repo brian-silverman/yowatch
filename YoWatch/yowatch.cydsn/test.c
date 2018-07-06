@@ -919,7 +919,6 @@ void TestDrawStatusBar()
         NOTIF_TEXT, NOTIF_INFO, STATUS_PHONE_BATTERY, NOTIF_ALERT, STATUS_WIFI,
         STATUS_BLE
         };
-    
     const int remove[] = {
         STATUS_TIME, NOTIF_TEXT, NOTIF_INFO, STATUS_WATCH_BATTERY, STATUS_WIFI,
         NOTIF_MAIL, NOTIF_ALERT, STATUS_BLE, STATUS_PHONE_BATTERY, NOTIF_PHONE,
@@ -1129,6 +1128,7 @@ void TestFont(
         int j;
         for (j = 0; j < LINE_LEN; j++) {
             s[j] = line * LINE_LEN + j;
+            s[j] = s[j] ? s[j] : 1;  // Can't print nulls, print \x1 instead
         }
         s[j] = '\0';
         DrawText(s, 0, 20 + line * (r.height + 1), font, WHITE, BLACK);
@@ -1350,6 +1350,7 @@ void TestSuite()
     MTEST(TestTextBoxFullScreen());
     MTEST(TestFont("FONT_5X5", FONT_5X5));
     MTEST(TestFont("FONT_5X8", FONT_5X8));
+    MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
     MTEST(TestTextBoxScrolling());
     MTEST(TestTextBox());
     MTEST(TestDrawLineHorzVert());
@@ -1360,6 +1361,7 @@ void TestSuite()
     MTEST(TestDrawImage());
 #endif
     MTEST(TestDrawStatusBar());
+    MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }
