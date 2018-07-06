@@ -526,6 +526,7 @@ int main()
     UART_1_Start();
 
     Timer_Programmable_Init();
+
     //
     // Verify state machine state field
     //

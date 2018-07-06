@@ -67,4 +67,7 @@ void DrawLine(
     int color
     );
 
+void DrawStatusBar(
+    );
+
 #endif

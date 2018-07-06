@@ -23,6 +23,7 @@
 #include "timeit.h"
 #include "util.h"
 #include "draw.h"
+#include "status.h"
 
 #define TEST_VERBOSE 0
 
@@ -903,13 +904,42 @@ void TestDrawImage()
     CyDelay(MTEST_DELAY);
 }
 
-void TestDisplayScrollUp()
-{
-    CyDelay(MTEST_DELAY);
-}
 
-void TestDisplayScrollDown()
+void TestDrawStatusBar()
 {
+    DisplayErase();
+
+    CenteredText("DrawStatusBar()", 40, -1);
+    CenteredText("Incrementally", 60, -1);
+    CenteredText("adding/removing", 70, -1);
+
+    const int delay = 200;
+    const int add[] = {
+        NOTIF_PHONE, STATUS_WATCH_BATTERY, STATUS_CELLULAR, STATUS_TIME, NOTIF_MAIL,
+        NOTIF_TEXT, NOTIF_INFO, STATUS_PHONE_BATTERY, NOTIF_ALERT, STATUS_WIFI,
+        STATUS_BLE
+        };
+    
+    const int remove[] = {
+        STATUS_TIME, NOTIF_TEXT, NOTIF_INFO, STATUS_WATCH_BATTERY, STATUS_WIFI,
+        NOTIF_MAIL, NOTIF_ALERT, STATUS_BLE, STATUS_PHONE_BATTERY, NOTIF_PHONE,
+        STATUS_CELLULAR
+        };
+
+    //
+    // Randomly add then remove all statuses
+    //
+    for (int i = 0; i < ARRAY_SIZEOF(add); i++) {
+        StatusSet(add[i], STATUS_SHOW);
+        DrawStatusBar();
+        CyDelay(delay);
+    }
+    for (int i = 0; i < ARRAY_SIZEOF(remove); i++) {
+        StatusSet(remove[i], STATUS_HIDE);
+        DrawStatusBar();
+        CyDelay(delay);
+    }
+
     CyDelay(MTEST_DELAY);
 }
 
@@ -1290,6 +1320,7 @@ void TestSuite()
     TEST(TestSpiXferWriteReadMem(TEST_SPI_XFER_UNLOCKED));
     TEST(TestSpiXferWriteReadMem(TEST_SPI_XFER_LOCKED));
 
+#if 0
     TEST(TestSerialRamFuncs());
     TEST(TestSerialRamWriteRead());
     TEST(TestSerialRamFillMem());
@@ -1324,10 +1355,11 @@ void TestSuite()
     MTEST(TestDrawLineHorzVert());
     MTEST(TestDrawLineDiag());
     MTEST(TestDrawRect());
+#endif
 #if 0
     MTEST(TestDrawImage());
-    MTEST(TestDrawStatusBar());
 #endif
+    MTEST(TestDrawStatusBar());
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }

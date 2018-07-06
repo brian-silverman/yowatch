@@ -18,6 +18,7 @@
 #include "fonts.h"
 #include "util.h"
 #include "draw.h"
+#include "status.h"
 
 #define SCREEN_WIDTH    128
 #define SCREEN_HEIGHT   96
@@ -475,4 +476,18 @@ void DrawLine(
             }
         }
     }
+}
+
+void DrawStatusBar(
+    )
+{
+    static char lastStatus[NUM_STATUSES + 1];
+    static char lastNotif[NUM_NOTIFS + 1];
+    static char status[NUM_STATUSES + 1];
+    static char notif[NUM_NOTIFS + 1];
+
+    StatusGetString(status, FIRST_STATUS, LAST_STATUS);
+    StatusGetString(notif, FIRST_NOTIF, LAST_NOTIF);
+
+    xprintf("%10s %10s\r\n", notif, status);
 }
