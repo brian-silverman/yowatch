@@ -1083,7 +1083,7 @@ void TestTextBoxScrolling()
 
 void TestColors()
 {
-    RECT r = {0, 0, 8, SCREEN_HEIGHT};
+    RECT r = {0, 0, 8, SCREEN_HEIGHT/2};
 
     DisplayErase();
 
@@ -1105,7 +1105,18 @@ void TestColors()
         r.x += 8;
     }
 
-    CenteredText("RGB COLOR BARS", -1, -1);
+    CenteredText("RGB COLOR BARS", 20, -1);
+
+    r = (RECT) {0, SCREEN_HEIGHT/2, 8, SCREEN_HEIGHT/2};
+
+    const int sections = 16;
+    for (int i = 0; i < sections; i++) {
+        r.x = i*(SCREEN_WIDTH/sections);
+        int intensity = i*(256/sections);
+        DrawRect(r, RGB565(intensity, intensity, intensity));
+    }
+
+    CenteredText("GRAYSCALE BARS", 70, -1);
 
     CyDelay(MTEST_DELAY);
 }
@@ -1360,8 +1371,11 @@ void TestSuite()
 #if 0
     MTEST(TestDrawImage());
 #endif
+#if 0
     MTEST(TestDrawStatusBar());
+#endif
     MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
+    MTEST(TestColors());
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }

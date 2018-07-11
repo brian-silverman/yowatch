@@ -18,6 +18,7 @@
 #include "spi.h"
 #include "assert.h"
 #include "colors.h"
+#include "util.h"
 
 #define STATUS_BAR_HEIGHT   7   // 5x5 font plus top/bottom pixel
 #define STATUS_BAR_WIDTH    SCREEN_WIDTH
@@ -65,14 +66,13 @@
 #define STOP_MOVING()                           CMD_ARGS(0x9E, 0)
 #define START_MOVING()                          CMD_ARGS(0x9F, 0)
 
-#define LOOKUP_TABLE_FOR_GRAYSCALE              0xB8
-#define LOOKUP_TABLE_FOR_GRAYSCALE_BYTES        63
+#define GAMMA_TABLE_CMD                         0xB8
+#define GAMMA_TABLE_BYTES                       63
 
-#ifdef UNIVISION_GAMMA_LOOKUP_TABLE
 //
 // Suggested gamma lookup table from Univision Users Guide
 //
-uint8 lookupTableForGrayscale[LOOKUP_TABLE_FOR_GRAYSCALE_BYTES] = {
+uint8 gammaTable[GAMMA_TABLE_BYTES] = {
     0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 
     0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 
     0x12, 0x13, 0x15, 0x17, 0x19, 0x1B, 0x1D, 0x1F, 
@@ -82,31 +82,6 @@ uint8 lookupTableForGrayscale[LOOKUP_TABLE_FOR_GRAYSCALE_BYTES] = {
     0x70, 0x74, 0x78, 0x7D, 0x82, 0x87, 0x8C, 0x91, 
     0x96, 0x9B, 0xA0, 0xA5, 0xAA, 0xAF, 0xB4
     };
-#else
-//
-// The suggested gamma lookup table from Univision does a very poor job of
-// representing low value colors.  The built-in linear table is only marginally
-// better.  This table below was generated from a polynomial curve that boosts
-// the low end pixel values.  It was generated in python with:
-//
-//  for i, val in enumerate(-.0007*(63-x)**(3.0)+200 for x in range(63)):
-//      print("0x{:02X}, ".format(int(val)), end="" if (i+1)%8 else "\n")
-//  print()
-//
-//  The formula was experimentally selected using a graphing calculator,
-//  primarily to adjust the coefficient and exponent.
-//
-uint8 lookupTableForGrayscale[LOOKUP_TABLE_FOR_GRAYSCALE_BYTES] = {
-    0x18, 0x21, 0x29, 0x30, 0x38, 0x3F, 0x46, 0x4D, 
-    0x53, 0x59, 0x5F, 0x65, 0x6B, 0x70, 0x75, 0x7A, 
-    0x7F, 0x83, 0x88, 0x8C, 0x90, 0x94, 0x97, 0x9B, 
-    0x9E, 0xA1, 0xA4, 0xA7, 0xA9, 0xAC, 0xAE, 0xB1, 
-    0xB3, 0xB5, 0xB6, 0xB8, 0xBA, 0xBB, 0xBD, 0xBE, 
-    0xBF, 0xC0, 0xC1, 0xC2, 0xC3, 0xC3, 0xC4, 0xC5, 
-    0xC5, 0xC6, 0xC6, 0xC6, 0xC7, 0xC7, 0xC7, 0xC7, 
-    0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 0xC7, 
-    };
-#endif
     
 //
 // Display buf that is used for all Display function as a temp framebuffer for
@@ -171,13 +146,75 @@ static void SendCommand(
     assert(SendBytesBlocking(data, bytes, 0) == 0);
 }
 
-static void SendLookupTableForGrayscale(
-    uint8 data[LOOKUP_TABLE_FOR_GRAYSCALE_BYTES]
+static void SendGammaTable(
+    uint8 data[GAMMA_TABLE_BYTES]
     )
 {
-    uint8 cmd = LOOKUP_TABLE_FOR_GRAYSCALE;
+    uint8 cmd = GAMMA_TABLE_CMD;
     assert(SendBytesBlocking(&cmd, 1, 1) == 0);
-    assert(SendBytesBlocking(data, LOOKUP_TABLE_FOR_GRAYSCALE_BYTES, 0) == 0);
+    assert(SendBytesBlocking(data, GAMMA_TABLE_BYTES, 0) == 0);
+}
+
+//
+// GenerateGammaTable - create a quadratic gamma curve given 3 points
+//
+// The suggested gamma lookup table from Univision does a very poor job of
+// representing low value colors.  The built-in linear table is only marginally
+// better.  This functions generates a table from a quadratic curve given 3
+// points.  The points must be between 0 and 1 in both x and y.
+//
+// For example, the points (0,0), (0.5,0.5), (1,1) would generate a linear
+// gamma, where (0,0), (0.5,0.6), (1,1) would generate a slight hump to the
+// gamma.
+//
+// The polynoimial generated is printed so the curve can be viewed via an
+// online graphing calculator.
+//
+void GenerateGammaTable(
+    uint8 gammas[GAMMA_TABLE_BYTES],
+    float x1,
+    float y1,
+    float x2,
+    float y2,
+    float x3,
+    float y3
+    )
+{
+    float denom, a, b, c;
+
+    assert(0.0 <= x1 && x1 <= 1.0);
+    assert(0.0 <= y1 && y1 <= 1.0);
+    assert(0.0 <= x2 && x2 <= 1.0);
+    assert(0.0 <= y2 && y2 <= 1.0);
+    assert(0.0 <= x3 && x3 <= 1.0);
+    assert(0.0 <= y3 && y3 <= 1.0);
+
+    //
+    // Quadratic solution (y = a*x^2 + b*x +c) given 3 points:
+    //
+    denom = (x1 - x2)*(x1 - x3)*(x2 - x3);
+    a = (x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2)) / denom;
+    b = (x3*x3 * (y1 - y2) + x2*x2 * (y3 - y1) + x1*x1 * (y2 - y3)) / denom;
+    c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
+
+    xprintf("Display gamma quadratic:\r\n");
+    xprintf("\t%c %d.%0dx^2 %c %d.%0dx %c %d.%0d\r\n", 
+        a < 0 ? '-' : '+', (int) ABS(a), (int) ABS((a - (int)a)*1000),
+        b < 0 ? '-' : '+', (int) ABS(b), (int) ABS((b - (int)b)*1000),
+        c < 0 ? '-' : '+', (int) ABS(c), (int) ABS((c - (int)c)*1000));
+
+    const int GAMMA_MAX = 0xD0;
+    int prev_val = 0;
+    for (int i = 0; i < GAMMA_TABLE_BYTES; i++) {
+        float x = (float) i / (float) GAMMA_TABLE_BYTES;
+        float y = a * x * x + b * x + c;
+        y *= GAMMA_MAX;
+        int val = (int) y;
+        val = val > GAMMA_MAX ? GAMMA_MAX: val;
+        val = val < prev_val ? prev_val : val;
+        gammas[i] = val;
+        prev_val = val;
+    }
 }
 
 void DisplayInit()
@@ -208,7 +245,8 @@ void DisplayInit()
     SET_SEGMENT_LOW_VOLTAGE(0xA0, 0xB5, 0x55);
     SET_CONTRAST_CURRENT_FOR_COLOR(0xC8, 0x80, 0x8A);
     MASTER_CONTRAST_CURRENT_CONTROL(0x0F);
-    SendLookupTableForGrayscale(lookupTableForGrayscale);
+    GenerateGammaTable(gammaTable, 0.0, 0.1, 0.4, 0.3, 1.0, 1.0);
+    SendGammaTable(gammaTable);
     SET_PHASE(0x32);
     DISPLAY_ENHANCEMENT(0xA4, 0x00, 0x00);
     SET_PRECHARGE_VOLTAGE(0x17);
@@ -322,4 +360,3 @@ void DisplayBitmap(
     SendBytesBlocking(buf, width * height * 2, 0);
 }
 
-    

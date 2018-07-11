@@ -149,3 +149,28 @@
 #define GAINSBORO                       RGB565(220, 220, 220)
 #define WHITE_SMOKE                     RGB565(245, 245, 245)
 #define WHITE                           RGB565(255, 255, 255)
+
+#define DARK_YELLOW                     RGB565(196, 196, 0)
+#if 0
+#define GRAY_0                          RGB565(8, 8, 8)
+#define GRAY_1                          RGB565(16, 16, 16)
+#define GRAY_2                          RGB565(24, 24, 24)
+#define GRAY_3                          RGB565(32, 32, 32)
+#define GRAY_4                          RGB565(40, 40, 40)
+#define GRAY_5                          RGB565(48, 48, 48)
+#define GRAY_6                          RGB565(56, 56, 56)
+#define GRAY_7                          RGB565(64, 64, 64)
+#define GRAY_8                          RGB565(72, 72, 72)
+#define GRAY_9                          RGB565(80, 80, 80)
+#else
+#define GRAY_0                          RGB565(24, 24, 24)
+#define GRAY_1                          RGB565(48, 48, 48)
+#define GRAY_2                          RGB565(72, 72, 72)
+#define GRAY_3                          RGB565(96, 96, 96)
+#define GRAY_4                          RGB565(120, 120, 120)
+#define GRAY_5                          RGB565(144, 144, 144)
+#define GRAY_6                          RGB565(168, 168, 168)
+#define GRAY_7                          RGB565(192, 192, 192)
+#define GRAY_8                          RGB565(216, 216, 216)
+#define GRAY_9                          RGB565(240, 240, 240)
+#endif

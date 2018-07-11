@@ -242,9 +242,11 @@ void SmOff(
     int call
     )
 {
-    DisplayInit();
-    SerialRamInit();
-    BufQueueInit();
+    if (call == FIRST_STATE_CALL) {
+        DisplayInit();
+        SerialRamInit();
+        BufQueueInit();
+    }
 }
 
 void SmSleep(

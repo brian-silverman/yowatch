@@ -22,23 +22,20 @@
 #define CHR_BLE_CONNECTED       'B'
 #define CHR_BLE_DISCONNECTED    'D'
 #define CHR_WIFI_0              'a'
-#define CHR_WIFI_20             'b'
-#define CHR_WIFI_40             'c'
-#define CHR_WIFI_60             'd'
-#define CHR_WIFI_80             'e'
-#define CHR_WIFI_100            'f'
-#define CHR_CELLULAR_0          'j'
-#define CHR_CELLULAR_20         'k'
-#define CHR_CELLULAR_40         'l'
-#define CHR_CELLULAR_60         'm'
-#define CHR_CELLULAR_80         'n'
-#define CHR_CELLULAR_100        'o'
+#define CHR_WIFI_25             'b'
+#define CHR_WIFI_50             'c'
+#define CHR_WIFI_75             'd'
+#define CHR_WIFI_100            'e'
+#define CHR_CELLULAR_0          'h'
+#define CHR_CELLULAR_25         'i'
+#define CHR_CELLULAR_50         'j'
+#define CHR_CELLULAR_75         'k'
+#define CHR_CELLULAR_100        'l'
 #define CHR_BATTERY_0           'p'
-#define CHR_BATTERY_20          'r'
-#define CHR_BATTERY_40          's'
-#define CHR_BATTERY_60          't'
-#define CHR_BATTERY_80          'u'
-#define CHR_BATTERY_100         'v'
+#define CHR_BATTERY_25          'q'
+#define CHR_BATTERY_50          'r'
+#define CHR_BATTERY_75          's'
+#define CHR_BATTERY_100         't'
 #define CHR_INVALID             'Z'
 
 static int8 statusCodes[NUM_STATUSES];
@@ -89,31 +86,27 @@ char StatusChar(
         case CV(STATUS_BLE, STATUS_BLE_DISCONNECTED):       return CHR_BLE_DISCONNECTED;
         case CV(STATUS_WIFI, STATUS_SHOW):                  return CHR_WIFI_0;
         case CV(STATUS_WIFI, STATUS_PERCENT_0):             return CHR_WIFI_0;
-        case CV(STATUS_WIFI, STATUS_PERCENT_20):            return CHR_WIFI_20;
-        case CV(STATUS_WIFI, STATUS_PERCENT_40):            return CHR_WIFI_40;
-        case CV(STATUS_WIFI, STATUS_PERCENT_60):            return CHR_WIFI_60;
-        case CV(STATUS_WIFI, STATUS_PERCENT_80):            return CHR_WIFI_80;
+        case CV(STATUS_WIFI, STATUS_PERCENT_25):            return CHR_WIFI_25;
+        case CV(STATUS_WIFI, STATUS_PERCENT_50):            return CHR_WIFI_50;
+        case CV(STATUS_WIFI, STATUS_PERCENT_75):            return CHR_WIFI_75;
         case CV(STATUS_WIFI, STATUS_PERCENT_100):           return CHR_WIFI_100;
         case CV(STATUS_CELLULAR, STATUS_SHOW):              return CHR_CELLULAR_0;
         case CV(STATUS_CELLULAR, STATUS_PERCENT_0):         return CHR_CELLULAR_0;
-        case CV(STATUS_CELLULAR, STATUS_PERCENT_20):        return CHR_CELLULAR_20;
-        case CV(STATUS_CELLULAR, STATUS_PERCENT_40):        return CHR_CELLULAR_40;
-        case CV(STATUS_CELLULAR, STATUS_PERCENT_60):        return CHR_CELLULAR_60;
-        case CV(STATUS_CELLULAR, STATUS_PERCENT_80):        return CHR_CELLULAR_80;
+        case CV(STATUS_CELLULAR, STATUS_PERCENT_25):        return CHR_CELLULAR_25;
+        case CV(STATUS_CELLULAR, STATUS_PERCENT_50):        return CHR_CELLULAR_50;
+        case CV(STATUS_CELLULAR, STATUS_PERCENT_75):        return CHR_CELLULAR_75;
         case CV(STATUS_CELLULAR, STATUS_PERCENT_100):       return CHR_CELLULAR_100;
         case CV(STATUS_WATCH_BATTERY, STATUS_SHOW):         return CHR_BATTERY_0;
         case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_0):    return CHR_BATTERY_0;
-        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_20):   return CHR_BATTERY_20;
-        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_40):   return CHR_BATTERY_40;
-        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_60):   return CHR_BATTERY_60;
-        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_80):   return CHR_BATTERY_80;
+        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_25):   return CHR_BATTERY_25;
+        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_50):   return CHR_BATTERY_50;
+        case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_75):   return CHR_BATTERY_75;
         case CV(STATUS_WATCH_BATTERY, STATUS_PERCENT_100):  return CHR_BATTERY_100;
         case CV(STATUS_PHONE_BATTERY, STATUS_SHOW):         return CHR_BATTERY_0;
         case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_0):    return CHR_BATTERY_0;
-        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_20):   return CHR_BATTERY_20;
-        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_40):   return CHR_BATTERY_40;
-        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_60):   return CHR_BATTERY_60;
-        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_80):   return CHR_BATTERY_80;
+        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_25):   return CHR_BATTERY_25;
+        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_50):   return CHR_BATTERY_50;
+        case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_75):   return CHR_BATTERY_75;
         case CV(STATUS_PHONE_BATTERY, STATUS_PERCENT_100):  return CHR_BATTERY_100;
         default: return CHR_INVALID;
     }
