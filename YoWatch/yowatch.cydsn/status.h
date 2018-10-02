@@ -1,6 +1,9 @@
 #ifndef _STATUS_H_
 #define _STATUS_H_
 
+#define STATUS_BAR_HEIGHT   8   // 5x5 font plus bottom pixel border (3)
+#define STATUS_BAR_WIDTH    SCREEN_WIDTH
+
 //
 // NOTIFications display left justified on the status bar, and only when the
 // notificationsa have occured.  STATUSes appear right-justified, and generally

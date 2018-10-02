@@ -154,5 +154,6 @@ void Post(
 
     xprintf("Total Memory: %dk\r\n", (int) (SerialRamTotalSize()/1024));
 
+    // Run optional test suite
     TestSuite();
 }

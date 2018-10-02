@@ -282,7 +282,11 @@ void DrawText(
 // @param box       bounding box to draw in.  May extend outside of screen
 //                  (although it will get cropped to the screen)
 // @param shiftUp   pixels to shift text up vertically
-// @param justify   One of: LEFT_JUSTIFIED, RIGHT_JUSTIFIED, CENTER_JUSTIFIED
+// @param justify   Justifications flags:
+//                  One of (or none of):
+//                      LEFT_JUSTIFIED (default), RIGHT_JUSTIFIED, HCENTER_JUSTIFIED
+//                  ORed with, one of (or none of):
+//                      TOP_JUSTIFIED (default), VCENTER_JUSTIFIED, BOTTOM_JUSTIFIED
 // @param font      text font
 // @param fgColor   foreground color of text
 // @param bgColor   background color of text
@@ -299,8 +303,34 @@ void DrawTextBox(
     )
 {
     RECT r, r2;
-    int lineX = box.x;
-    int lineY = box.y - shiftUp;
+    RECT textRect;
+    int lineX;
+    int lineY;
+
+    //
+    // Compute starting y line, based on veritcal justify
+    //
+    GetTextDimensions(NULL, font, &textRect);
+    int totalTextHeight = textRect.height * num;
+    lineY = box.y - shiftUp; // starting y position
+    switch (justify & VERT_JUST_MASK) {
+        case 0:
+        case TOP_JUSTIFIED:
+            // Do nothing - this is the default
+            break;
+
+        case BOTTOM_JUSTIFIED:
+            lineY += box.height - totalTextHeight;
+            break;
+
+        case VCENTER_JUSTIFIED:
+            lineY += (box.height - totalTextHeight)/2;
+            break;
+
+        default:
+            assert(0);
+            break;
+    }
 
     //
     // For each line draw the text, and also clear any non-text areas.
@@ -309,10 +339,10 @@ void DrawTextBox(
     // buffered.
     //
     for (int i = 0; i < num; i++) {
-        RECT textRect = box;
         GetTextDimensions(lines[i], font, &textRect);
 
-        switch (justify) {
+        switch (justify & HORIZ_JUST_MASK) {
+            case 0:
             case LEFT_JUSTIFIED:
                 lineX = box.x;
 
@@ -332,7 +362,7 @@ void DrawTextBox(
                 DrawRect(r, bgColor);
                 break;
 
-            case CENTER_JUSTIFIED:
+            case HCENTER_JUSTIFIED:
                 lineX = box.x + (box.width - textRect.width)/2;
 
                 // Erase BG to left of text line
@@ -352,6 +382,7 @@ void DrawTextBox(
 
             default:
                 assert(0);
+                break;
         }
         DrawTextBounded(lines[i], lineX, lineY, font, fgColor, bgColor, box);
         lineY += textRect.height;
@@ -516,4 +547,5 @@ void DrawStatusBar(
 
     int h = GetFontHeight(font);
     DrawLine(0, h, SCREEN_WIDTH - 1, h, WHITE);
+    assert(h + 3 == STATUS_BAR_HEIGHT);
 }

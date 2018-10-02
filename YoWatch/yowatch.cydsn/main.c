@@ -242,11 +242,6 @@ void SmOff(
     int call
     )
 {
-    if (call == FIRST_STATE_CALL) {
-        DisplayInit();
-        SerialRamInit();
-        BufQueueInit();
-    }
 }
 
 void SmSleep(
@@ -261,9 +256,34 @@ void SmTime(
     int call
     )
 {
-    if (call == FIRST_STATE_CALL) {
-        Post();
-    }
+    // TODO: Draw only if changed
+    DrawStatusBar();
+
+#if 0
+    RECT r = SCREEN_BOUNDS;
+    r.y += STATUS_BAR_HEIGHT;
+    r.height -= STATUS_BAR_HEIGHT;
+
+void DrawTextBox(
+    (char *[]){"12:34"},
+    1,
+    r,
+    0,
+    HCENTER_JUSTIFIED | VCENTER_JUSTIFIED,
+    int font,
+    WHITE,
+    BLACK
+    )
+    DrawText();
+DrawTextBounded(
+    int x,
+    int y,
+    int font,
+    int fgColor,
+    int bgColor,
+    RECT bound
+    )
+#endif
 }
 
 void SmVoice(
@@ -528,6 +548,11 @@ int main()
     UART_1_Start();
 
     Timer_Programmable_Init();
+
+    DisplayInit();
+    SerialRamInit();
+    BufQueueInit();
+    Post();
 
     //
     // Verify state machine state field

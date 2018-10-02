@@ -19,9 +19,7 @@
 #include "assert.h"
 #include "colors.h"
 #include "util.h"
-
-#define STATUS_BAR_HEIGHT   7   // 5x5 font plus top/bottom pixel
-#define STATUS_BAR_WIDTH    SCREEN_WIDTH
+#include "status.h"
 
 #define CMD_ARGS(cmd,argc,...) \
     { \

@@ -3,9 +3,15 @@
 
 #include <rect.h>
 
-#define LEFT_JUSTIFIED      0
-#define CENTER_JUSTIFIED    1
-#define RIGHT_JUSTIFIED     2
+#define LEFT_JUSTIFIED      0x01
+#define HCENTER_JUSTIFIED   0x02
+#define RIGHT_JUSTIFIED     0x03
+#define HORIZ_JUST_MASK     0x03
+
+#define TOP_JUSTIFIED       0x04
+#define VCENTER_JUSTIFIED   0x08
+#define BOTTOM_JUSTIFIED    0x0C
+#define VERT_JUST_MASK      0x0C
 
 extern RECT SCREEN_BOUNDS;
 

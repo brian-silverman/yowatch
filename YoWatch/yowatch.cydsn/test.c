@@ -25,6 +25,9 @@
 #include "draw.h"
 #include "status.h"
 
+// Enable to run TestSuite();
+#define DO_TEST_SUITE
+
 #define TEST_VERBOSE 0
 
 int pass = 0;
@@ -975,6 +978,56 @@ void TestTextBoxFullScreen()
     CyDelay(MTEST_DELAY);
 }
 
+void TestVerticalJustifiedTextBox()
+{
+    RECT r;
+    RECT borderRect;
+    char * llines[] = {
+        "Top",
+        "Just",
+    };
+    char * clines[] = {
+        "VCenter",
+        "Just",
+    };
+    char * rlines[] = {
+        "Bottom",
+        "Just",
+    };
+
+    //
+    // Title
+    //
+    DisplayErase();
+    CenteredText("Vert Justifies Text", 0, 0);
+
+    //
+    // Left Text Box (Top Justified)
+    //
+    r = (RECT) {1, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, RED);
+    DrawTextBox(llines, ARRAY_SIZEOF(llines), r, 0, TOP_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Left Text Box (Top Justified)
+    //
+    r = (RECT) {40, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, GREEN);
+    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, VCENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Right Text Box (Bottom Justified)
+    //
+    r = (RECT) {80, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, BLUE);
+    DrawTextBox(rlines, ARRAY_SIZEOF(rlines), r, 0, BOTTOM_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY);
+}
+
 void TestTextBox()
 {
     RECT r;
@@ -990,7 +1043,7 @@ void TestTextBox()
         "123",
     };
     char * clines[] = {
-        "Center",
+        "HCenter",
         "Justified",
         "OOB Box",
         "0123456789ABCDEF",
@@ -1016,7 +1069,7 @@ void TestTextBox()
     r = (RECT) {30, 55, 70, 70};
     borderRect = ExpandedRect(r, 1);
     DrawRect(borderRect, GREEN);
-    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, CENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, HCENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
 
     //
     // Left Text Box (Right Justified)
@@ -1317,6 +1370,10 @@ void test()
 
 void TestSuite()
 {
+#ifndef DO_TEST_SUITE
+    // TODO: Run TestSuite() based on power on multiple button press.
+    return;
+#endif
     xprintf("==== TEST SUITE RUNNING @ %s, %s ====\r\n", __DATE__, __TIME__);
 
     TEST(TestSpiXferInterrupts(TEST_SPI_XFER_TX, 1));
@@ -1370,12 +1427,12 @@ void TestSuite()
 #endif
 #if 0
     MTEST(TestDrawImage());
-#endif
-#if 0
     MTEST(TestDrawStatusBar());
-#endif
     MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
     MTEST(TestColors());
+#endif
+    MTEST(TestTextBox());
+    MTEST(TestVerticalJustifiedTextBox());
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
 }
