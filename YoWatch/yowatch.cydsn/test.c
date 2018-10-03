@@ -933,12 +933,12 @@ void TestDrawStatusBar()
     //
     for (int i = 0; i < ARRAY_SIZEOF(add); i++) {
         StatusSet(add[i], STATUS_SHOW);
-        DrawStatusBar();
+        DrawStatusBar(0);
         CyDelay(delay);
     }
     for (int i = 0; i < ARRAY_SIZEOF(remove); i++) {
         StatusSet(remove[i], STATUS_HIDE);
-        DrawStatusBar();
+        DrawStatusBar(0);
         CyDelay(delay);
     }
 
@@ -999,7 +999,7 @@ void TestVerticalJustifiedTextBox()
     // Title
     //
     DisplayErase();
-    CenteredText("Vert Justifies Text", 0, 0);
+    CenteredText("Vert Justified Text", 0, 0);
 
     //
     // Left Text Box (Top Justified)
@@ -1431,8 +1431,14 @@ void TestSuite()
     MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
     MTEST(TestColors());
 #endif
+#if 0
     MTEST(TestTextBox());
     MTEST(TestVerticalJustifiedTextBox());
+#endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
+#if 0
+    xprintf("==== Starting in 10 seconds ====\r\n");
+    CyDelay(10000);
+#endif
 }

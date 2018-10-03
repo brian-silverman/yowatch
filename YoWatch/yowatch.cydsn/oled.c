@@ -355,6 +355,7 @@ void DisplayBitmap(
 
     width = x2 - x1 + 1;
     height = y2 - y1 + 1;
+    xprintf("\t%d\r\n", width * height * 2);
     SendBytesBlocking(buf, width * height * 2, 0);
 }
 

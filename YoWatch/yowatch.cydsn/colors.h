@@ -163,7 +163,7 @@
 #define GRAY_8                          RGB565(216, 216, 216)
 #define GRAY_9                          RGB565(240, 240, 240)
 
-#define GRAY_0X0                        RGB565(15, 15, 15)
+#define GRAY_0X0                        RGB565(0, 0, 0)
 #define GRAY_0X1                        RGB565(31, 31, 31)
 #define GRAY_0X2                        RGB565(47, 47, 47)
 #define GRAY_0X3                        RGB565(63, 63, 63)

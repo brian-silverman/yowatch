@@ -12,8 +12,6 @@ struct FONT_CHAR {
 };
 
 #define MAX_CHARS 128
-#define INTER_CHAR_SPACING 1
-#define INTER_LINE_SPACING 1
 
 extern const struct FONT_CHAR *fonts[MAX_FONTS];
 
@@ -23,7 +21,20 @@ void GetTextDimensions(
     RECT * r
     );
 
+int GetInterCharSpacing(
+    int font
+    );
+
+int GetInterLineSpacing(
+    int font
+    );
+
 int GetFontHeight(
+    int font
+    );
+
+int GetCharWidth(
+    char c,
     int font
     );
 

@@ -71,6 +71,11 @@
 #include "queue.h"
 #include "i2s.h"
 #include "oled.h"
+#include "fonts.h"
+#include "colors.h"
+#include "draw.h"
+#include "status.h"
+#include "util.h"
 
 //
 // Speedtest buffer
@@ -256,34 +261,23 @@ void SmTime(
     int call
     )
 {
+    static int x=0;
     // TODO: Draw only if changed
-    DrawStatusBar();
+    DrawStatusBar(call == FIRST_STATE_CALL);
 
-#if 0
-    RECT r = SCREEN_BOUNDS;
-    r.y += STATUS_BAR_HEIGHT;
-    r.height -= STATUS_BAR_HEIGHT;
+    RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
 
-void DrawTextBox(
-    (char *[]){"12:34"},
-    1,
-    r,
-    0,
-    HCENTER_JUSTIFIED | VCENTER_JUSTIFIED,
-    int font,
-    WHITE,
-    BLACK
-    )
-    DrawText();
-DrawTextBounded(
-    int x,
-    int y,
-    int font,
-    int fgColor,
-    int bgColor,
-    RECT bound
-    )
-#endif
+    DrawTextBox(
+        (char *[]){"12:34"},
+        1,
+        r,
+        0,
+        HCENTER_JUSTIFIED | VCENTER_JUSTIFIED,
+        FONT_TIME,
+        WHITE,
+        BLACK
+    );
+    xprintf("%d\r\n", x++);
 }
 
 void SmVoice(
@@ -513,6 +507,16 @@ const struct {
         }},
 };
 
+const struct {
+    int (*condition)(int);
+    char * name;
+} transitionNames[] = {
+    { NAME(TrAccel) },
+    { NAME(TrBle) },
+    { NAME(TrButton) },
+    { NAME(TrGoToSleep) },
+    { NAME(TrVoice) },
+};
 
 //
 // Main entry point:
@@ -583,10 +587,17 @@ int main()
         ptransition = &SM[state].transition[0];
         while (ptransition->newState != NONE) {
             if (!ptransition->condition || ptransition->condition(ptransition->condArg)) {
-                int newState = ptransition->newState;
-                xprintf("-State %s\r\n", SM[state].name);
-                SM[state].func(newState, LAST_STATE_CALL);
-                state = newState;
+                char * trName;
+                for (i = 0; i < ARRAY_SIZEOF(transitionNames); i++) {
+                    if (ptransition->condition == transitionNames[i].condition) break;
+                }
+                trName = i >= ARRAY_SIZEOF(transitionNames) ? "???" : transitionNames[i].name;
+
+                xprintf("-State %s (--- %s ---> %s)\r\n", 
+                    SM[state].name, trName, SM[ptransition->newState].name
+                    );
+                SM[state].func(ptransition->newState, LAST_STATE_CALL);
+                state = ptransition->newState;
                 first = 1;
                 break;
             }

@@ -76,4 +76,8 @@ void DrawLine(
 void DrawStatusBar(
     );
 
+void DrawStatusBar(
+    int erase
+    );
+
 #endif
