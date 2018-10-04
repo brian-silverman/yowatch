@@ -195,11 +195,13 @@ void GenerateGammaTable(
     b = (x3*x3 * (y1 - y2) + x2*x2 * (y3 - y1) + x1*x1 * (y2 - y3)) / denom;
     c = (x2 * x3 * (x2 - x3) * y1 + x3 * x1 * (x3 - x1) * y2 + x1 * x2 * (x1 - x2) * y3) / denom;
 
-    xprintf("Display gamma quadratic:\r\n");
-    xprintf("\t%c %d.%0dx^2 %c %d.%0dx %c %d.%0d\r\n", 
-        a < 0 ? '-' : '+', (int) ABS(a), (int) ABS((a - (int)a)*1000),
-        b < 0 ? '-' : '+', (int) ABS(b), (int) ABS((b - (int)b)*1000),
-        c < 0 ? '-' : '+', (int) ABS(c), (int) ABS((c - (int)c)*1000));
+    if (0) {
+        xprintf("Display gamma quadratic:\r\n");
+        xprintf("\t%c %d.%0dx^2 %c %d.%0dx %c %d.%0d\r\n", 
+            a < 0 ? '-' : '+', (int) ABS(a), (int) ABS((a - (int)a)*1000),
+            b < 0 ? '-' : '+', (int) ABS(b), (int) ABS((b - (int)b)*1000),
+            c < 0 ? '-' : '+', (int) ABS(c), (int) ABS((c - (int)c)*1000));
+    }
 
     const int GAMMA_MAX = 0xD0;
     int prev_val = 0;
@@ -355,7 +357,6 @@ void DisplayBitmap(
 
     width = x2 - x1 + 1;
     height = y2 - y1 + 1;
-    xprintf("\t%d\r\n", width * height * 2);
     SendBytesBlocking(buf, width * height * 2, 0);
 }
 

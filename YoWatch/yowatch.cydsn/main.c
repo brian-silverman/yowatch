@@ -25,7 +25,7 @@
  *          - Cloud converts audio to text
  *          - YoPhone sends back partial text to YoWatch
  *          - YoWatch displays partial text when it receives it
- *      - YoPhone uses final text to run specific command.  
+ *      - YoPhone uses final text to run specific command.
  *          - In general, the command does a web search for some data, parses
  *          the data, and sends the data back to YoWatch
  *          - YoPhone may use a combination of cloud services, like Google.
@@ -76,6 +76,7 @@
 #include "draw.h"
 #include "status.h"
 #include "util.h"
+#include "tick.h"
 
 //
 // Speedtest buffer
@@ -128,8 +129,8 @@ enum {
 #define BUTTON_UP           (1 << 2)
 #define BUTTON_DOWN         (1 << 3)
 #define BUTTON_ANY          (BUTTON_FORWARD | BUTTON_BACK | BUTTON_UP | BUTTON_DOWN)
-#define BUTTON_LEFT         BUTTON_BACK          
-#define BUTTON_RIGHT        BUTTON_FORWARD          
+#define BUTTON_LEFT         BUTTON_BACK
+#define BUTTON_RIGHT        BUTTON_FORWARD
 
 #define ACCEL_TWIST         (1 << 0)
 
@@ -208,33 +209,38 @@ enum STATE GetBleStateIfNew(enum STATE state)
 //
 
 int TrAccel(
+    int condition
     )
 {
     return 0;
 }
 
 int TrBle(
+    int condition
     )
 {
     return 0;
 }
 
 int TrButton(
+    int condition
     )
 {
     return 0;
 }
 
 int TrGoToSleep(
+    int condition
     )
 {
     return 0;
 }
 
 int TrVoice(
+    int condition
     )
 {
-    return 1;
+    return 0;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -247,6 +253,12 @@ void SmOff(
     int call
     )
 {
+    // Note: SmOff only gets called (once) on power up...
+
+    //
+    // Initialization that's required at boot once SM is running.
+    //
+    TickInit();
 }
 
 void SmSleep(
@@ -261,23 +273,20 @@ void SmTime(
     int call
     )
 {
-    static int x=0;
+    static unsigned int lastSecTick = 0;
+    unsigned int curSecTick;
+
     // TODO: Draw only if changed
     DrawStatusBar(call == FIRST_STATE_CALL);
 
-    RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
+    curSecTick = GetTick() / 1000;
+    if (curSecTick == lastSecTick) return;
 
-    DrawTextBox(
-        (char *[]){"12:34"},
-        1,
-        r,
-        0,
-        HCENTER_JUSTIFIED | VCENTER_JUSTIFIED,
-        FONT_TIME,
-        WHITE,
-        BLACK
-    );
-    xprintf("%d\r\n", x++);
+    char s[10];
+    sprintf(s, "%02d:%02d", curSecTick / 60, curSecTick % 60);
+    char * a[] = {s};
+    RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
+    DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
 }
 
 void SmVoice(
@@ -578,7 +587,7 @@ int main()
     for (;;) {
         const struct TRANSITION * ptransition;
         CyBle_ProcessEvents();
-        
+
         if (first) {
             xprintf("+State %s\r\n", SM[state].name);
         }
@@ -593,7 +602,7 @@ int main()
                 }
                 trName = i >= ARRAY_SIZEOF(transitionNames) ? "???" : transitionNames[i].name;
 
-                xprintf("-State %s (--- %s ---> %s)\r\n", 
+                xprintf("-State %s (--- %s ---> %s)\r\n",
                     SM[state].name, trName, SM[ptransition->newState].name
                     );
                 SM[state].func(ptransition->newState, LAST_STATE_CALL);
