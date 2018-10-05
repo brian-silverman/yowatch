@@ -17,7 +17,7 @@
 
 #define TICKS_PER_PERIOD_MS 65000
 
-unsigned int periodCount = 0;
+uint periodCount = 0;
 
 CY_ISR(TimerMillisecIsr)
 {
@@ -25,6 +25,17 @@ CY_ISR(TimerMillisecIsr)
     periodCount++;
 }
 
+//
+// Init Tick API
+//
+// Currently using a 1kHz clock for the counter, based off of the IMO clock.
+// But it only has an accuracy of +/- 2% (.3% for current device under test).
+// Could be greatly improved if it ran off the +/- 20ppm LFCLK.
+//
+// What's worse, it appears a TCPWM block won't run in deep sleep.  It may be
+// possible, though, to run the WDT off of the LFCLK, which will run in deep
+// sleep.
+//
 void TickInit()
 {
     TimerMillisecIsr_StartEx(TimerMillisecIsr);
@@ -37,7 +48,7 @@ void TickInit()
     TimerMillisec_Enable();
 }
 
-unsigned int GetTick()
+uint GetTick()
 {
     return periodCount * TICKS_PER_PERIOD_MS + TimerMillisec_ReadCounter() % TICKS_PER_PERIOD_MS;
 }

@@ -3,6 +3,6 @@
 
 void TickInit();
 
-unsigned int GetTick();
+uint GetTick();
 
 #endif

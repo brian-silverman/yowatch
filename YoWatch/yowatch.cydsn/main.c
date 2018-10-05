@@ -273,20 +273,29 @@ void SmTime(
     int call
     )
 {
-    static unsigned int lastSecTick = 0;
-    unsigned int curSecTick;
+#if 0
+    uint8 * pbuf1 = SerialRamGetBuf(0);
+#endif
+    static uint lastMinTick = 0;
+    uint curMinTick;
 
-    // TODO: Draw only if changed
     DrawStatusBar(call == FIRST_STATE_CALL);
 
-    curSecTick = GetTick() / 1000;
-    if (curSecTick == lastSecTick) return;
-
-    char s[10];
-    sprintf(s, "%02d:%02d", curSecTick / 60, curSecTick % 60);
-    char * a[] = {s};
-    RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
-    DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
+#if 0
+    I2sStartDma(NULL, NULL);
+    CyDelay(10);
+    assert(DequeueBytesBlocking(pbuf1, SERIAL_RAM_BUFSIZE) == 0);
+#endif
+    // FIXME: currently doind seconds calc - switch to minutes
+    curMinTick = GetTick() / 1000;
+    if (curMinTick != lastMinTick) {
+        char s[10];
+        sprintf(s, "%2d:%02d", curMinTick / 60, curMinTick % 60);
+        char * a[] = {s};
+        RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
+        DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
+    }
+    lastMinTick = curMinTick;
 }
 
 void SmVoice(

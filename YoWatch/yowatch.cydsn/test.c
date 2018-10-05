@@ -24,6 +24,7 @@
 #include "util.h"
 #include "draw.h"
 #include "status.h"
+#include "tick.h"
 
 // Enable to run TestSuite();
 #define DO_TEST_SUITE
@@ -115,6 +116,33 @@ int _TestAssertIntEq(
 //
 /////////////////////////////////////////////////////////////////////
 
+
+void CenteredText(
+    char * s,
+    int y,
+    int border
+    )
+{
+    const int font = FONT_5X8;
+
+    if (border < 0) {
+        border = 2;
+    }
+
+    RECT textRect;
+    GetTextDimensions(s, font, &textRect);
+    RECT r = (RECT) {
+        (SCREEN_WIDTH - textRect.width) / 2,
+        y >= 0 ? y : (SCREEN_HEIGHT - textRect.height) / 2,
+        textRect.width,
+        textRect.height
+    };
+
+
+    RECT borderRect = ExpandedRect(r, border);
+    DrawRect(borderRect, BLACK);
+    DrawText(s, r.x, r.y, font, WHITE, BLACK);
+}
 
 // Freq of Timer_Programmable_* input clock
 #define TIMER_CLOCK_FREQ_MHZ 1
@@ -563,6 +591,60 @@ int TestQueueConcurrency()
     TEST_RETURN;
 }
 
+uint StupidSquareRoot(uint n)
+{
+    int x = n;
+    int y = 1;
+
+    while ((x - y) > 1) {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+
+int TestMicVolumeMeter()
+{
+    int16 * pbuf3 = (int16 *) SerialRamGetBuf(2);
+    BufQueueInit();
+    TickInit();
+    DisplayErase();
+
+    CenteredText("Microphone Meter", 0, -1);
+
+    uint start = GetTick();
+
+    I2sStartDma(NULL, NULL);
+    while (GetTick() - start < MTEST_DELAY_SLOW) {
+        int ret = DequeueBytesBlocking((uint8 *) pbuf3, SERIAL_RAM_BUFSIZE);
+        if (ret) continue;
+
+        const int samples = SERIAL_RAM_BUFSIZE / sizeof(int16);
+        int mean = 0;
+        for (int j = 0; j < samples; j++) {
+            mean += pbuf3[j];
+        }
+        mean = mean/samples;
+
+        uint rms = 0;
+        for (int j = 0; j < samples; j++) {
+            int dcBiasRemovedSample = pbuf3[j] - mean;
+            rms += dcBiasRemovedSample * dcBiasRemovedSample;
+        }
+        rms = StupidSquareRoot(rms/samples);
+
+        uint bar = rms * 128 / 1000;
+        bar = MIN(bar, 1000);
+
+        DrawRect((RECT) {0, 50, bar, 20}, WHITE);
+        DrawRect((RECT) {bar + 1, 50, SCREEN_WIDTH - bar, 20}, BLACK);
+    }
+    I2sStopDma();
+
+    return 0;
+}
+
 int TestMicDump()
 {
     int i;
@@ -677,7 +759,7 @@ int TestDoRectsIntersect()
     TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 0, 10, 10}));
     // 10x10, rect to the right and below
     TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 20, 10, 10}));
-    
+
     // Same as above section, rect1/rect2 flipped
     TEST_ASSERT(! DoRectsIntersect((RECT) {10, 10, 10, 10}, (RECT) {0, 0, 10, 10}));
     TEST_ASSERT(DoRectsIntersect((RECT) {9, 9, 10, 10}, (RECT) {0, 0, 10, 10}));
@@ -733,26 +815,26 @@ int TestRectIntersection()
 
     // null rect
     r = RectIntersection((RECT) {0, 0, 0, 0}, (RECT) {0, 0, 0, 0});
-    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 0 && r.height == 0); 
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 0 && r.height == 0);
 
     // equal rects
     r = RectIntersection((RECT) {10, 20, 30, 40}, (RECT) {10, 20, 30, 40});
-    TEST_ASSERT(r.x == 10 && r.y == 20 && r.width == 30 && r.height == 40); 
+    TEST_ASSERT(r.x == 10 && r.y == 20 && r.width == 30 && r.height == 40);
 
     // simple rects overlapped
     r = RectIntersection((RECT) {0, 0, 10, 10}, (RECT) {5, 5, 50, 50});
-    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5);
     // swapped args
     r = RectIntersection((RECT) {5, 5, 50, 50}, (RECT) {0, 0, 10, 10});
-    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5);
 
     // negative rect
     r = RectIntersection((RECT) {-10, -20, 15, 25}, (RECT) {0, 0, 30, 10});
-    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 5 && r.height == 5);
 
     // rect in rect
     r = RectIntersection((RECT) {10, 20, 100, 120}, (RECT) {30, 40, 10, 20});
-    TEST_ASSERT(r.x == 30 && r.y == 40 && r.width == 10 && r.height == 20); 
+    TEST_ASSERT(r.x == 30 && r.y == 40 && r.width == 10 && r.height == 20);
 
     TEST_RETURN;
 }
@@ -765,40 +847,13 @@ int TestExpandedRect()
     RECT r2;
 
     r2 = ExpandedRect(r1, 0);
-    TEST_ASSERT(r2.x == 10 && r2.y == 11 && r2.width == 12 && r2.height == 13); 
+    TEST_ASSERT(r2.x == 10 && r2.y == 11 && r2.width == 12 && r2.height == 13);
     r2 = ExpandedRect(r1, 1);
-    TEST_ASSERT(r2.x == 9 && r2.y == 10 && r2.width == 14 && r2.height == 15); 
+    TEST_ASSERT(r2.x == 9 && r2.y == 10 && r2.width == 14 && r2.height == 15);
     r2 = ExpandedRect(r1, 5);
-    TEST_ASSERT(r2.x == 5 && r2.y == 6 && r2.width == 22 && r2.height == 23); 
+    TEST_ASSERT(r2.x == 5 && r2.y == 6 && r2.width == 22 && r2.height == 23);
 
     TEST_RETURN;
-}
-
-void CenteredText(
-    char * s,
-    int y,
-    int border
-    )
-{
-    const int font = FONT_5X8;
-
-    if (border < 0) {
-        border = 2;
-    }
-
-    RECT textRect;
-    GetTextDimensions(s, font, &textRect);
-    RECT r = (RECT) {
-        (SCREEN_WIDTH - textRect.width) / 2, 
-        y >= 0 ? y : (SCREEN_HEIGHT - textRect.height) / 2,
-        textRect.width,
-        textRect.height
-    };
-
-
-    RECT borderRect = ExpandedRect(r, border);
-    DrawRect(borderRect, BLACK);
-    DrawText(s, r.x, r.y, font, WHITE, BLACK);
 }
 
 void TestDisplayUpperLeftCorner()
@@ -880,7 +935,7 @@ void TestDrawLineDiag()
     x = 60, y = 60;
     for (int i = 0; i <= 30; i += 5) DrawLine(x+w,      y+w-i,  x,      y+i,    BLUE);
 
-    // 
+    //
     // OOB lines
     //
     DrawLine(100, 120, 130, 0, RED);
@@ -1126,7 +1181,7 @@ void TestTextBoxScrolling()
 
     for (int shiftUp = 0; shiftUp < SCREEN_HEIGHT; shiftUp++) {
         DrawTextBox(
-            lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, 
+            lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS,
             shiftUp, LEFT_JUSTIFIED, FONT_5X8, WHITE, BLACK
             );
         CyDelay(10);
@@ -1425,6 +1480,7 @@ void TestSuite()
     MTEST(TestDrawLineDiag());
     MTEST(TestDrawRect());
 #endif
+    MTEST(TestMicVolumeMeter());
 #if 0
     MTEST(TestDrawImage());
     MTEST(TestDrawStatusBar());
