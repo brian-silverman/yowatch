@@ -129,6 +129,7 @@ static int SendBytesBlocking(
     ret = SpiXfer(data, NULL, bytes, SPI_SS_OLED, NULL, &done, SPI_DONE_CALLBACK);
     if (ret == 0 || ret == -EAGAIN) {
         while (!done);
+        ret = 0;
     }
     OLED_DAT_CMD_Write(0);
     return ret;
