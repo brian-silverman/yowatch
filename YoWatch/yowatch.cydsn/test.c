@@ -167,8 +167,8 @@ int TestSpiXferInterrupts(
 
     int done;
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     uint32 ss = SPI_SS_MEM_0;
 
     spiTxIsrCalls = spiRxIsrCalls = 0;
@@ -195,8 +195,8 @@ int TestSpiXferWriteReadMem(
 
     int done;
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     uint32 ss = SPI_SS_MEM_0;
 
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -233,7 +233,7 @@ int TestSpiXferTooMany()
     TEST_INIT;
 
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
     uint32 ss = SPI_SS_MEM_0;
 
     TEST_ASSERT_INT_EQ(SpiXfer(pbuf1, NULL, SERIAL_RAM_BUFSIZE, ss, NULL, NULL, 0), 0);
@@ -249,7 +249,7 @@ int TestSerialRamFuncs()
 {
     TEST_INIT;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
 
     TEST_ASSERT(SerialRamRead(pbuf1, 0x0000000, SERIAL_RAM_BUFSIZE, NULL, NULL) == 0);
     CyDelay(10);
@@ -265,8 +265,8 @@ int TestSerialRamWriteRead()
 
     int i, j;
     int ret;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     for (i = 0; i < 3; i++) {
         uint32 ramAddress = i * 0x00002345; // Arbitrary address
@@ -298,8 +298,8 @@ int TestSerialRamFillMem()
 {
     TEST_INIT;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     const uint8 arbitraryVal1 = 0x12;
     const uint8 arbitraryVal2 = 0x56;
     const uint32 arbitraryAddr1 = 0x1234;
@@ -332,8 +332,8 @@ int TestSerialRamXfersOverlapping()
     const uint32 HALF = HALF_BUFSIZE/sizeof(uint32);
     int i;
     int ret;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     uint32 ramAddress = 0x00012345; // Arbitrary address
 
@@ -386,7 +386,7 @@ int prevFree;
 CY_ISR(DebugMemtestIsr)
 {
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
 
     Timer_Programmable_ClearInterrupt(Timer_Programmable_GetInterruptSource());
     for (i = 0; i < SERIAL_RAM_BUFSIZE/sizeof(uint32); i++) {
@@ -414,8 +414,8 @@ int TestQueueEnqueueOneDequeueOne()
 
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -445,8 +445,8 @@ int TestQueueEnqueueDequeueVariableSizes()
     int i, j, x;
     uint8 copyBuf[32];
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -497,8 +497,8 @@ int TestQueueFillThenEmpty()
     int ret;
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -551,8 +551,8 @@ int TestQueueConcurrency()
     int deqCount;
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     enqCount = 0;
@@ -606,7 +606,7 @@ uint StupidSquareRoot(uint n)
 
 int TestMicVolumeMeter()
 {
-    int16 * pbuf3 = (int16 *) SerialRamGetBuf(2);
+    uint8 * pbuf3 = SerialRamGetBuf(SRAM_EXTRA_BUF);
     BufQueueInit();
     TickInit();
     DisplayErase();
@@ -620,20 +620,8 @@ int TestMicVolumeMeter()
         int ret = DequeueBytesBlocking((uint8 *) pbuf3, SERIAL_RAM_BUFSIZE);
         if (ret) continue;
 
-        const int samples = SERIAL_RAM_BUFSIZE / sizeof(int16);
-        int mean = 0;
-        for (int j = 0; j < samples; j++) {
-            mean += pbuf3[j];
-        }
-        mean = mean/samples;
-
-        uint rms = 0;
-        for (int j = 0; j < samples; j++) {
-            int dcBiasRemovedSample = pbuf3[j] - mean;
-            rms += dcBiasRemovedSample * dcBiasRemovedSample;
-        }
-        rms = StupidSquareRoot(rms/samples);
-
+        uint rms = StupidSquareRoot(AudioBufVariance(pbuf3));
+        
         uint bar = rms * 128 / 1000;
         bar = MIN(bar, 1000);
 
@@ -649,7 +637,7 @@ int TestMicDump()
 {
     int i;
     int done;
-    uint8 * pbuf3 = SerialRamGetBuf(2);
+    uint8 * pbuf3 = SerialRamGetBuf(SRAM_EXTRA_BUF);
 
     BufQueueInit();
 

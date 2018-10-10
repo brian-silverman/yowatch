@@ -77,6 +77,9 @@
 #include "status.h"
 #include "util.h"
 #include "tick.h"
+#include "listen.h"
+
+#define MIC_CHAR 'X'
 
 //
 // Speedtest buffer
@@ -240,7 +243,8 @@ int TrVoice(
     int condition
     )
 {
-    return 0;
+    return (condition == VOICE_ACTIVITY && ListenActivity())
+        || (condition == VOICE_TIMEOUT && ListenTimeout());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -273,29 +277,47 @@ void SmTime(
     int call
     )
 {
-#if 0
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-#endif
-    static uint lastMinTick = 0;
-    uint curMinTick;
+    static uint since1 = 0;
+    static uint since2 = 0;
+    int font = FONT_5X8;
+    int micHeight = GetFontHeight(font);
+    int micWidth = GetCharWidth(MIC_CHAR, font);
 
     DrawStatusBar(call == FIRST_STATE_CALL);
 
-#if 0
-    I2sStartDma(NULL, NULL);
-    CyDelay(10);
-    assert(DequeueBytesBlocking(pbuf1, SERIAL_RAM_BUFSIZE) == 0);
-#endif
+    if (call == FIRST_STATE_CALL) {
+        ListenStart();
+    }
+
     // FIXME: currently doind seconds calc - switch to minutes
-    curMinTick = GetTick() / 1000;
-    if (curMinTick != lastMinTick) {
+    if (Expired(1000, &since1)) {
         char s[10];
+        uint curMinTick = GetTick() / 1000;
         sprintf(s, "%2d:%02d", curMinTick / 60, curMinTick % 60);
         char * a[] = {s};
-        RECT r = (RECT) {0, STATUS_BAR_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - STATUS_BAR_HEIGHT};
+        RECT r = (RECT) {
+            0,
+            STATUS_BAR_HEIGHT,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT - STATUS_BAR_HEIGHT - micHeight
+            };
         DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
+
     }
-    lastMinTick = curMinTick;
+    if (Expired(50, &since2)) {
+        char s[] = {MIC_CHAR, 0};
+        DrawText(s, 0, SCREEN_HEIGHT - micHeight, font, WHITE, BLACK);
+        int level = ListenLevel();
+        int barX = micWidth + 4;
+        int barWidth = barX + (level * SCREEN_WIDTH / (2 * LISTEN_HIGH_THRESHOLD));
+        int maxBarWidth = SCREEN_WIDTH - barX;
+
+        RECT r;
+        r = (RECT) {barX, SCREEN_HEIGHT - micHeight, barWidth, micHeight};
+        DrawRect(r, GREEN);
+        r = (RECT) {barX + barWidth, SCREEN_HEIGHT - micHeight, maxBarWidth - barWidth, micHeight};
+        DrawRect(r, BLACK);
+    }
 }
 
 void SmVoice(

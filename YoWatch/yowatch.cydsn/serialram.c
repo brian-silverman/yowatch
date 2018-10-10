@@ -166,8 +166,8 @@ static int memExists(
 {
     int i;
     uint8 x;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     for (i = 0, x = 0; i < SERIAL_RAM_BUFSIZE; i++, x += skipVal) {
         pbuf1[i] = x;
@@ -313,7 +313,7 @@ int SerialRamFillBlocking(
     uint8 val
     )
 {
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
     int ret;
     int i;
 

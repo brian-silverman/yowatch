@@ -87,8 +87,8 @@ uint8 * I2sStartDma(
     void (*isr)(void)
     )
 {
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     static uint8 * pCurrentBuf = NULL;
     uint8 * pPrevBuf;
 

@@ -2,12 +2,20 @@
 #define _SERIALRAM_H_
 
 #include <project.h>
+#include "listen.h"
 
 #define SERIAL_RAM_BUFSIZE 256
 
 #define SERIAL_RAM_SIZE (128 * 1024)
 
-#define SERIAL_RAM_NUM_BUFS 3
+enum {
+    PING_PONG_BUF_0,
+    PING_PONG_BUF_1,
+    SRAM_EXTRA_BUF,
+    FIRST_LISTEN_QUEUE_BUF,
+    LAST_LISTEN_QUEUE_BUF = FIRST_LISTEN_QUEUE_BUF + LISTEN_QUEUE_NUM_BUFS - 1,
+    SERIAL_RAM_NUM_BUFS
+};
 
 uint32 SerialRamMemExists(
     uint32 memIndex

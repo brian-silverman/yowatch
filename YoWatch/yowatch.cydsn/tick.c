@@ -36,7 +36,8 @@ CY_ISR(TimerMillisecIsr)
 // possible, though, to run the WDT off of the LFCLK, which will run in deep
 // sleep.
 //
-void TickInit()
+void TickInit(
+    )
 {
     TimerMillisecIsr_StartEx(TimerMillisecIsr);
 
@@ -48,9 +49,24 @@ void TickInit()
     TimerMillisec_Enable();
 }
 
-uint GetTick()
+uint GetTick(
+    )
 {
     return periodCount * TICKS_PER_PERIOD_MS + TimerMillisec_ReadCounter() % TICKS_PER_PERIOD_MS;
 }
 
-
+int Expired(
+    uint msec,
+    uint * since
+    )
+{
+    uint now = GetTick();
+    int elapsed = now - *since;
+    assert(elapsed > 0);
+    if (elapsed > msec) {
+        *since = now - (elapsed - msec);
+        return 1;
+    }
+    return 0;
+}
+    
