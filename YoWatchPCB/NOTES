@@ -115,5 +115,7 @@ have been soldered on properly.
 TODO:
     - MCP1661 - review for PCB routing recommendations (Cin/out directly next to in/out pins,
       recommended trace width, etc)
+    - Larger tab cutout at bottom (for case clearance)?
+    - Larger pads on buttons for easier soldering
 
 
