@@ -24,6 +24,10 @@
 #include "util.h"
 #include "draw.h"
 #include "status.h"
+#include "tick.h"
+
+// Enable to run TestSuite();
+#define DO_TEST_SUITE
 
 #define TEST_VERBOSE 0
 
@@ -113,6 +117,33 @@ int _TestAssertIntEq(
 /////////////////////////////////////////////////////////////////////
 
 
+void CenteredText(
+    char * s,
+    int y,
+    int border
+    )
+{
+    const int font = FONT_5X8;
+
+    if (border < 0) {
+        border = 2;
+    }
+
+    RECT textRect;
+    GetTextDimensions(s, font, &textRect);
+    RECT r = (RECT) {
+        (SCREEN_WIDTH - textRect.width) / 2,
+        y >= 0 ? y : (SCREEN_HEIGHT - textRect.height) / 2,
+        textRect.width,
+        textRect.height
+    };
+
+
+    RECT borderRect = ExpandedRect(r, border);
+    DrawRect(borderRect, BLACK);
+    DrawText(s, r.x, r.y, font, WHITE, BLACK);
+}
+
 // Freq of Timer_Programmable_* input clock
 #define TIMER_CLOCK_FREQ_MHZ 1
 
@@ -136,8 +167,8 @@ int TestSpiXferInterrupts(
 
     int done;
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     uint32 ss = SPI_SS_MEM_0;
 
     spiTxIsrCalls = spiRxIsrCalls = 0;
@@ -164,8 +195,8 @@ int TestSpiXferWriteReadMem(
 
     int done;
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     uint32 ss = SPI_SS_MEM_0;
 
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -202,7 +233,7 @@ int TestSpiXferTooMany()
     TEST_INIT;
 
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
     uint32 ss = SPI_SS_MEM_0;
 
     TEST_ASSERT_INT_EQ(SpiXfer(pbuf1, NULL, SERIAL_RAM_BUFSIZE, ss, NULL, NULL, 0), 0);
@@ -218,7 +249,7 @@ int TestSerialRamFuncs()
 {
     TEST_INIT;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
 
     TEST_ASSERT(SerialRamRead(pbuf1, 0x0000000, SERIAL_RAM_BUFSIZE, NULL, NULL) == 0);
     CyDelay(10);
@@ -234,8 +265,8 @@ int TestSerialRamWriteRead()
 
     int i, j;
     int ret;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     for (i = 0; i < 3; i++) {
         uint32 ramAddress = i * 0x00002345; // Arbitrary address
@@ -267,8 +298,8 @@ int TestSerialRamFillMem()
 {
     TEST_INIT;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     const uint8 arbitraryVal1 = 0x12;
     const uint8 arbitraryVal2 = 0x56;
     const uint32 arbitraryAddr1 = 0x1234;
@@ -301,8 +332,8 @@ int TestSerialRamXfersOverlapping()
     const uint32 HALF = HALF_BUFSIZE/sizeof(uint32);
     int i;
     int ret;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     uint32 ramAddress = 0x00012345; // Arbitrary address
 
@@ -355,7 +386,7 @@ int prevFree;
 CY_ISR(DebugMemtestIsr)
 {
     int i;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
 
     Timer_Programmable_ClearInterrupt(Timer_Programmable_GetInterruptSource());
     for (i = 0; i < SERIAL_RAM_BUFSIZE/sizeof(uint32); i++) {
@@ -383,8 +414,8 @@ int TestQueueEnqueueOneDequeueOne()
 
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -414,8 +445,8 @@ int TestQueueEnqueueDequeueVariableSizes()
     int i, j, x;
     uint8 copyBuf[32];
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -466,8 +497,8 @@ int TestQueueFillThenEmpty()
     int ret;
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     memset(pbuf1, 0, SERIAL_RAM_BUFSIZE);
@@ -520,8 +551,8 @@ int TestQueueConcurrency()
     int deqCount;
     int i;
 
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
 
     BufQueueInit();
     enqCount = 0;
@@ -560,11 +591,53 @@ int TestQueueConcurrency()
     TEST_RETURN;
 }
 
+uint StupidSquareRoot(uint n)
+{
+    int x = n;
+    int y = 1;
+
+    while ((x - y) > 1) {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    return x;
+}
+
+
+int TestMicVolumeMeter()
+{
+    uint8 * pbuf3 = SerialRamGetBuf(SRAM_EXTRA_BUF);
+    BufQueueInit();
+    TickInit();
+    DisplayErase();
+
+    CenteredText("Microphone Meter", 0, -1);
+
+    uint start = GetTick();
+
+    I2sStartDma(NULL, NULL);
+    while (GetTick() - start < MTEST_DELAY_SLOW) {
+        int ret = DequeueBytesBlocking((uint8 *) pbuf3, SERIAL_RAM_BUFSIZE);
+        if (ret) continue;
+
+        uint rms = StupidSquareRoot(AudioBufVariance(pbuf3));
+        
+        uint bar = rms * 128 / 1000;
+        bar = MIN(bar, 1000);
+
+        DrawRect((RECT) {0, 50, bar, 20}, WHITE);
+        DrawRect((RECT) {bar + 1, 50, SCREEN_WIDTH - bar, 20}, BLACK);
+    }
+    I2sStopDma();
+
+    return 0;
+}
+
 int TestMicDump()
 {
     int i;
     int done;
-    uint8 * pbuf3 = SerialRamGetBuf(2);
+    uint8 * pbuf3 = SerialRamGetBuf(SRAM_EXTRA_BUF);
 
     BufQueueInit();
 
@@ -674,7 +747,7 @@ int TestDoRectsIntersect()
     TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 0, 10, 10}));
     // 10x10, rect to the right and below
     TEST_ASSERT(! DoRectsIntersect((RECT) {0, 0, 10, 10}, (RECT) {20, 20, 10, 10}));
-    
+
     // Same as above section, rect1/rect2 flipped
     TEST_ASSERT(! DoRectsIntersect((RECT) {10, 10, 10, 10}, (RECT) {0, 0, 10, 10}));
     TEST_ASSERT(DoRectsIntersect((RECT) {9, 9, 10, 10}, (RECT) {0, 0, 10, 10}));
@@ -730,26 +803,26 @@ int TestRectIntersection()
 
     // null rect
     r = RectIntersection((RECT) {0, 0, 0, 0}, (RECT) {0, 0, 0, 0});
-    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 0 && r.height == 0); 
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 0 && r.height == 0);
 
     // equal rects
     r = RectIntersection((RECT) {10, 20, 30, 40}, (RECT) {10, 20, 30, 40});
-    TEST_ASSERT(r.x == 10 && r.y == 20 && r.width == 30 && r.height == 40); 
+    TEST_ASSERT(r.x == 10 && r.y == 20 && r.width == 30 && r.height == 40);
 
     // simple rects overlapped
     r = RectIntersection((RECT) {0, 0, 10, 10}, (RECT) {5, 5, 50, 50});
-    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5);
     // swapped args
     r = RectIntersection((RECT) {5, 5, 50, 50}, (RECT) {0, 0, 10, 10});
-    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 5 && r.y == 5 && r.width == 5 && r.height == 5);
 
     // negative rect
     r = RectIntersection((RECT) {-10, -20, 15, 25}, (RECT) {0, 0, 30, 10});
-    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 5 && r.height == 5); 
+    TEST_ASSERT(r.x == 0 && r.y == 0 && r.width == 5 && r.height == 5);
 
     // rect in rect
     r = RectIntersection((RECT) {10, 20, 100, 120}, (RECT) {30, 40, 10, 20});
-    TEST_ASSERT(r.x == 30 && r.y == 40 && r.width == 10 && r.height == 20); 
+    TEST_ASSERT(r.x == 30 && r.y == 40 && r.width == 10 && r.height == 20);
 
     TEST_RETURN;
 }
@@ -762,40 +835,13 @@ int TestExpandedRect()
     RECT r2;
 
     r2 = ExpandedRect(r1, 0);
-    TEST_ASSERT(r2.x == 10 && r2.y == 11 && r2.width == 12 && r2.height == 13); 
+    TEST_ASSERT(r2.x == 10 && r2.y == 11 && r2.width == 12 && r2.height == 13);
     r2 = ExpandedRect(r1, 1);
-    TEST_ASSERT(r2.x == 9 && r2.y == 10 && r2.width == 14 && r2.height == 15); 
+    TEST_ASSERT(r2.x == 9 && r2.y == 10 && r2.width == 14 && r2.height == 15);
     r2 = ExpandedRect(r1, 5);
-    TEST_ASSERT(r2.x == 5 && r2.y == 6 && r2.width == 22 && r2.height == 23); 
+    TEST_ASSERT(r2.x == 5 && r2.y == 6 && r2.width == 22 && r2.height == 23);
 
     TEST_RETURN;
-}
-
-void CenteredText(
-    char * s,
-    int y,
-    int border
-    )
-{
-    const int font = FONT_5X8;
-
-    if (border < 0) {
-        border = 2;
-    }
-
-    RECT textRect;
-    GetTextDimensions(s, font, &textRect);
-    RECT r = (RECT) {
-        (SCREEN_WIDTH - textRect.width) / 2, 
-        y >= 0 ? y : (SCREEN_HEIGHT - textRect.height) / 2,
-        textRect.width,
-        textRect.height
-    };
-
-
-    RECT borderRect = ExpandedRect(r, border);
-    DrawRect(borderRect, BLACK);
-    DrawText(s, r.x, r.y, font, WHITE, BLACK);
 }
 
 void TestDisplayUpperLeftCorner()
@@ -877,7 +923,7 @@ void TestDrawLineDiag()
     x = 60, y = 60;
     for (int i = 0; i <= 30; i += 5) DrawLine(x+w,      y+w-i,  x,      y+i,    BLUE);
 
-    // 
+    //
     // OOB lines
     //
     DrawLine(100, 120, 130, 0, RED);
@@ -930,12 +976,12 @@ void TestDrawStatusBar()
     //
     for (int i = 0; i < ARRAY_SIZEOF(add); i++) {
         StatusSet(add[i], STATUS_SHOW);
-        DrawStatusBar();
+        DrawStatusBar(0);
         CyDelay(delay);
     }
     for (int i = 0; i < ARRAY_SIZEOF(remove); i++) {
         StatusSet(remove[i], STATUS_HIDE);
-        DrawStatusBar();
+        DrawStatusBar(0);
         CyDelay(delay);
     }
 
@@ -975,6 +1021,56 @@ void TestTextBoxFullScreen()
     CyDelay(MTEST_DELAY);
 }
 
+void TestVerticalJustifiedTextBox()
+{
+    RECT r;
+    RECT borderRect;
+    char * llines[] = {
+        "Top",
+        "Just",
+    };
+    char * clines[] = {
+        "VCenter",
+        "Just",
+    };
+    char * rlines[] = {
+        "Bottom",
+        "Just",
+    };
+
+    //
+    // Title
+    //
+    DisplayErase();
+    CenteredText("Vert Justified Text", 0, 0);
+
+    //
+    // Left Text Box (Top Justified)
+    //
+    r = (RECT) {1, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, RED);
+    DrawTextBox(llines, ARRAY_SIZEOF(llines), r, 0, TOP_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Left Text Box (Top Justified)
+    //
+    r = (RECT) {40, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, GREEN);
+    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, VCENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    //
+    // Right Text Box (Bottom Justified)
+    //
+    r = (RECT) {80, 20, 36, 70};
+    borderRect = ExpandedRect(r, 1);
+    DrawRect(borderRect, BLUE);
+    DrawTextBox(rlines, ARRAY_SIZEOF(rlines), r, 0, BOTTOM_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+
+    CyDelay(MTEST_DELAY);
+}
+
 void TestTextBox()
 {
     RECT r;
@@ -990,7 +1086,7 @@ void TestTextBox()
         "123",
     };
     char * clines[] = {
-        "Center",
+        "HCenter",
         "Justified",
         "OOB Box",
         "0123456789ABCDEF",
@@ -1016,7 +1112,7 @@ void TestTextBox()
     r = (RECT) {30, 55, 70, 70};
     borderRect = ExpandedRect(r, 1);
     DrawRect(borderRect, GREEN);
-    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, CENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
+    DrawTextBox(clines, ARRAY_SIZEOF(clines), r, 0, HCENTER_JUSTIFIED, FONT_5X8, WHITE, BLACK);
 
     //
     // Left Text Box (Right Justified)
@@ -1073,7 +1169,7 @@ void TestTextBoxScrolling()
 
     for (int shiftUp = 0; shiftUp < SCREEN_HEIGHT; shiftUp++) {
         DrawTextBox(
-            lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, 
+            lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS,
             shiftUp, LEFT_JUSTIFIED, FONT_5X8, WHITE, BLACK
             );
         CyDelay(10);
@@ -1317,6 +1413,10 @@ void test()
 
 void TestSuite()
 {
+#ifndef DO_TEST_SUITE
+    // TODO: Run TestSuite() based on power on multiple button press.
+    return;
+#endif
     xprintf("==== TEST SUITE RUNNING @ %s, %s ====\r\n", __DATE__, __TIME__);
 
     TEST(TestSpiXferInterrupts(TEST_SPI_XFER_TX, 1));
@@ -1368,14 +1468,21 @@ void TestSuite()
     MTEST(TestDrawLineDiag());
     MTEST(TestDrawRect());
 #endif
+    MTEST(TestMicVolumeMeter());
 #if 0
     MTEST(TestDrawImage());
-#endif
-#if 0
     MTEST(TestDrawStatusBar());
-#endif
     MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
     MTEST(TestColors());
+#endif
+#if 0
+    MTEST(TestTextBox());
+    MTEST(TestVerticalJustifiedTextBox());
+#endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
+#if 0
+    xprintf("==== Starting in 10 seconds ====\r\n");
+    CyDelay(10000);
+#endif
 }

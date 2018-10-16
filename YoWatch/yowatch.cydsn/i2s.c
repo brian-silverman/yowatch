@@ -73,6 +73,11 @@ static void I2sRxDmaIsr(void)
 //
 // Start an I2S Mic DMA transaction to a ping-pong buf
 //
+// @param buf   first buffer to write I2S DMA data to.  Useful to just get one
+//              buffer (See I2sGetBuf()).  If NULL, global ping-pong buffers
+//              are used.
+// @param isr   ISR called on DMA completion.  If NULL, use default ISR.
+//
 // As the completion ISR starts another DMA transaction when this one
 // completes, the sequenece of DMAs will run forever until stopped
 // (via I2sStopDma())
@@ -82,8 +87,8 @@ uint8 * I2sStartDma(
     void (*isr)(void)
     )
 {
-    uint8 * pbuf1 = SerialRamGetBuf(0);
-    uint8 * pbuf2 = SerialRamGetBuf(1);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
+    uint8 * pbuf2 = SerialRamGetBuf(PING_PONG_BUF_1);
     static uint8 * pCurrentBuf = NULL;
     uint8 * pPrevBuf;
 

@@ -1,3 +1,7 @@
+#!/usr/bin/python
+#
+# genfonts.py - convert all .fnt files into C formatted structure
+#
 import re
 import sys
 from itertools import chain

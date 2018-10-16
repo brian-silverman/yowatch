@@ -184,18 +184,11 @@ void DrawBorder(
 }
 
 //
-// Draw text cropped by the given /bound/
+// Called by DrawTextBounded(). 
 //
-// @param text      text to draw
-// @param x         left start point of text
-// @param y         top start point of text
-// @param font      text font
-// @param fgColor   foreground color of text
-// @param bgColor   background color of text
-// @param bound     bounding rectangle of text.  Any part of text outside of
-//                  this rectangle will be cropped.
+// Assumes that /text/ is not too big to fit in displayBuf.
 //
-void DrawTextBounded(
+static void _DrawTextBounded(
     char * text,
     int x,
     int y,
@@ -228,20 +221,20 @@ void DrawTextBounded(
     //
     uint16 * dest = (uint16 *) displayBuf;
     int charX = x;
+    int interCharSpacing = GetInterCharSpacing(font);
     for (char * t = text; *t != '\0'; t++) {
         assert(*t >= 0 && *t < MAX_CHARS);
         const struct FONT_CHAR * p = &pfont[(int) *t];
 
-        RECT charRect = {charX, y, p->width + INTER_CHAR_SPACING, p->height};
+        RECT charRect = {charX, y, p->width + interCharSpacing, p->height};
         RECT boundedCharRect = RectIntersection(charRect, boundedTextRect);
         boundedCharRect.x -= charX;
         boundedCharRect.y -= y;
 
         dest += CharImageCopy(dest, p, boundedCharRect, fgColor, bgColor);
 
-        charX += p->width + INTER_CHAR_SPACING;
+        charX += p->width + interCharSpacing;
     }
-
 
     //
     // DisplayBitmap.  Note: the number of pixels written to the displayBuf
@@ -255,6 +248,53 @@ void DrawTextBounded(
         boundedTextRect.x + boundedTextRect.width - 1,
         boundedTextRect.y + boundedTextRect.height - 1
         );
+}
+
+//
+// Draw text cropped by the given /bound/
+//
+// @param text      text to draw
+// @param x         left start point of text
+// @param y         top start point of text
+// @param font      text font
+// @param fgColor   foreground color of text
+// @param bgColor   background color of text
+// @param bound     bounding rectangle of text.  Any part of text outside of
+//                  this rectangle will be cropped.
+//
+void DrawTextBounded(
+    char * text,
+    int x,
+    int y,
+    int font,
+    int fgColor,
+    int bgColor,
+    RECT bound
+    )
+{
+    //
+    // If font is so big that a single fullscreen line is greater than the size
+    // of displayBuf, then we'll print char by char.  If a char itself is too
+    // big, we're screwed.
+    //
+    int height = GetFontHeight(font);
+    int interCharSpacing = GetInterCharSpacing(font);
+    if (SCREEN_WIDTH * height * 2 > sizeof(displayBuf)) {
+        char c[2];
+        c[1] = 0;
+        while (text[0]) {
+            int cwidth = GetCharWidth(*text, font);
+            c[0] = *text;
+            assert((cwidth + interCharSpacing) * height <= sizeof(displayBuf));
+            _DrawTextBounded(c, x, y, font, fgColor, bgColor, bound);
+            x += cwidth;
+            DrawRect((RECT) {x, y, interCharSpacing, height}, bgColor);
+            x += interCharSpacing;
+            text++;
+        }
+    } else {
+        _DrawTextBounded(text, x, y, font, fgColor, bgColor, bound);
+    }
 }
 
 //
@@ -282,7 +322,11 @@ void DrawText(
 // @param box       bounding box to draw in.  May extend outside of screen
 //                  (although it will get cropped to the screen)
 // @param shiftUp   pixels to shift text up vertically
-// @param justify   One of: LEFT_JUSTIFIED, RIGHT_JUSTIFIED, CENTER_JUSTIFIED
+// @param justify   Justifications flags:
+//                  One of (or none of):
+//                      LEFT_JUSTIFIED (default), RIGHT_JUSTIFIED, HCENTER_JUSTIFIED
+//                  ORed with, one of (or none of):
+//                      TOP_JUSTIFIED (default), VCENTER_JUSTIFIED, BOTTOM_JUSTIFIED
 // @param font      text font
 // @param fgColor   foreground color of text
 // @param bgColor   background color of text
@@ -299,8 +343,37 @@ void DrawTextBox(
     )
 {
     RECT r, r2;
-    int lineX = box.x;
-    int lineY = box.y - shiftUp;
+    RECT textRect;
+    int lineX;
+    int lineY;
+
+    //
+    // Compute starting y line, based on veritcal justify
+    //
+    int totalTextHeight = GetFontHeight(font) * num;
+    lineY = box.y - shiftUp; // starting y position
+    switch (justify & VERT_JUST_MASK) {
+        case 0:
+        case TOP_JUSTIFIED:
+            // Do nothing - this is the default
+            break;
+
+        case BOTTOM_JUSTIFIED:
+            lineY += box.height - totalTextHeight;
+            break;
+
+        case VCENTER_JUSTIFIED:
+            lineY += (box.height - totalTextHeight)/2;
+            break;
+
+        default:
+            assert(0);
+            break;
+    }
+
+    // Erase any space above the text
+    r = (RECT) {box.x, box.y, box.width, lineY - box.y};
+    DrawRect(r, bgColor);
 
     //
     // For each line draw the text, and also clear any non-text areas.
@@ -308,11 +381,12 @@ void DrawTextBox(
     // whole text box beforehand) to avoid flicker - display is not double
     // buffered.
     //
+    int interLineSpacing = GetInterLineSpacing(font);
     for (int i = 0; i < num; i++) {
-        RECT textRect = box;
         GetTextDimensions(lines[i], font, &textRect);
 
-        switch (justify) {
+        switch (justify & HORIZ_JUST_MASK) {
+            case 0:
             case LEFT_JUSTIFIED:
                 lineX = box.x;
 
@@ -332,7 +406,7 @@ void DrawTextBox(
                 DrawRect(r, bgColor);
                 break;
 
-            case CENTER_JUSTIFIED:
+            case HCENTER_JUSTIFIED:
                 lineX = box.x + (box.width - textRect.width)/2;
 
                 // Erase BG to left of text line
@@ -352,22 +426,22 @@ void DrawTextBox(
 
             default:
                 assert(0);
+                break;
         }
         DrawTextBounded(lines[i], lineX, lineY, font, fgColor, bgColor, box);
         lineY += textRect.height;
 
         // Erase space between lines
-        r = (RECT) {box.x, lineY, box.width, INTER_LINE_SPACING};
+        r = (RECT) {box.x, lineY, box.width, interLineSpacing};
         r = RectIntersection(r, box);
         DrawRect(r, bgColor);
-        lineY += INTER_LINE_SPACING;
+        lineY += interLineSpacing;
     }
 
     // Erase the rest of the text box
     r = (RECT) {box.x, lineY, box.width, box.y + box.height - lineY};
     r = RectIntersection(r, box);
     DrawRect(r, bgColor);
-    lineY += INTER_LINE_SPACING;
 }
 
 void DrawPoint(
@@ -484,13 +558,19 @@ void DrawLine(
 }
 
 void DrawStatusBar(
+    int erase
     )
 {
-    const int font = FONT_5X8;
+    const int font = FONT_5X5;
     static char lastStatus[NUM_STATUSES + 1];
     static char lastNotif[NUM_NOTIFS + 1];
     static char status[NUM_STATUSES + 1];
     static char notif[NUM_NOTIFS + 1];
+
+    if (erase) {
+        RECT r = (RECT) {0, 0, SCREEN_WIDTH, STATUS_BAR_HEIGHT};
+        DrawRect(r, BLACK);
+    }
 
     StatusGetString(status, FIRST_STATUS, LAST_STATUS);
     StatusGetString(notif, FIRST_NOTIF, LAST_NOTIF);
@@ -515,5 +595,8 @@ void DrawStatusBar(
     }
 
     int h = GetFontHeight(font);
-    DrawLine(0, h, SCREEN_WIDTH - 1, h, WHITE);
+    DrawLine(0, h + 0, SCREEN_WIDTH - 1, h + 0, BLACK);
+    DrawLine(0, h + 1, SCREEN_WIDTH - 1, h + 1, WHITE);
+    DrawLine(0, h + 2, SCREEN_WIDTH - 1, h + 2, BLACK);
+    assert(h + 3 == STATUS_BAR_HEIGHT);
 }

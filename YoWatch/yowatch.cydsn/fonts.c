@@ -37,10 +37,11 @@ void GetTextDimensions(
         _width = 0;
         _height = pfont[0].height;
     } else {
+        int interCharSpacing = GetInterCharSpacing(font);
         for (char * t = text; *t != '\0'; t++) {
             assert(*t >= 0 && *t < MAX_CHARS);
             const struct FONT_CHAR * p = &pfont[(int) *t];
-            _width += p->width + INTER_CHAR_SPACING;
+            _width += p->width + interCharSpacing;
             _height = MAX(_height, p->height);
             // For now, only handle fixed height fonts
             assert(_height == p->height);
@@ -62,5 +63,38 @@ int GetFontHeight(
     RECT r;
     GetTextDimensions("", font, &r);
     return r.height;
+}
+
+//
+// Gets width of a char for a given font 
+//
+int GetCharWidth(
+    char c,
+    int font
+    )
+{
+    const struct FONT_CHAR * pfont = fonts[font];
+    const struct FONT_CHAR * p = &pfont[(int) c];
+    return p->width;
+}
+
+//
+// Gets inter char spacing, based on font size
+//
+int GetInterCharSpacing(
+    int font
+    )
+{
+    return GetFontHeight(font) > 20 ? 2 : 1;
+}
+
+//
+// Gets inter line spacing, based on font size
+//
+int GetInterLineSpacing(
+    int font
+    )
+{
+    return GetFontHeight(font) > 20 ? 2 : 1;
 }
 

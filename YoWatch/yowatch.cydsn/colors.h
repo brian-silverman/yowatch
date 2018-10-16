@@ -151,18 +151,7 @@
 #define WHITE                           RGB565(255, 255, 255)
 
 #define DARK_YELLOW                     RGB565(196, 196, 0)
-#if 0
-#define GRAY_0                          RGB565(8, 8, 8)
-#define GRAY_1                          RGB565(16, 16, 16)
-#define GRAY_2                          RGB565(24, 24, 24)
-#define GRAY_3                          RGB565(32, 32, 32)
-#define GRAY_4                          RGB565(40, 40, 40)
-#define GRAY_5                          RGB565(48, 48, 48)
-#define GRAY_6                          RGB565(56, 56, 56)
-#define GRAY_7                          RGB565(64, 64, 64)
-#define GRAY_8                          RGB565(72, 72, 72)
-#define GRAY_9                          RGB565(80, 80, 80)
-#else
+
 #define GRAY_0                          RGB565(24, 24, 24)
 #define GRAY_1                          RGB565(48, 48, 48)
 #define GRAY_2                          RGB565(72, 72, 72)
@@ -173,4 +162,20 @@
 #define GRAY_7                          RGB565(192, 192, 192)
 #define GRAY_8                          RGB565(216, 216, 216)
 #define GRAY_9                          RGB565(240, 240, 240)
-#endif
+
+#define GRAY_0X0                        RGB565(0, 0, 0)
+#define GRAY_0X1                        RGB565(31, 31, 31)
+#define GRAY_0X2                        RGB565(47, 47, 47)
+#define GRAY_0X3                        RGB565(63, 63, 63)
+#define GRAY_0X4                        RGB565(79, 79, 79)
+#define GRAY_0X5                        RGB565(95, 95, 95)
+#define GRAY_0X6                        RGB565(111, 111, 111)
+#define GRAY_0X7                        RGB565(127, 127, 127)
+#define GRAY_0X8                        RGB565(143, 143, 143)
+#define GRAY_0X9                        RGB565(159, 159, 159)
+#define GRAY_0XA                        RGB565(175, 175, 175)
+#define GRAY_0XB                        RGB565(191, 191, 191)
+#define GRAY_0XC                        RGB565(207, 207, 207)
+#define GRAY_0XD                        RGB565(223, 223, 223)
+#define GRAY_0XE                        RGB565(239, 239, 239)
+#define GRAY_0XF                        RGB565(255, 255, 255)

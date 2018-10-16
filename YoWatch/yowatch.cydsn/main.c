@@ -25,7 +25,7 @@
  *          - Cloud converts audio to text
  *          - YoPhone sends back partial text to YoWatch
  *          - YoWatch displays partial text when it receives it
- *      - YoPhone uses final text to run specific command.  
+ *      - YoPhone uses final text to run specific command.
  *          - In general, the command does a web search for some data, parses
  *          the data, and sends the data back to YoWatch
  *          - YoPhone may use a combination of cloud services, like Google.
@@ -71,6 +71,15 @@
 #include "queue.h"
 #include "i2s.h"
 #include "oled.h"
+#include "fonts.h"
+#include "colors.h"
+#include "draw.h"
+#include "status.h"
+#include "util.h"
+#include "tick.h"
+#include "listen.h"
+
+#define MIC_CHAR 'X'
 
 //
 // Speedtest buffer
@@ -123,8 +132,8 @@ enum {
 #define BUTTON_UP           (1 << 2)
 #define BUTTON_DOWN         (1 << 3)
 #define BUTTON_ANY          (BUTTON_FORWARD | BUTTON_BACK | BUTTON_UP | BUTTON_DOWN)
-#define BUTTON_LEFT         BUTTON_BACK          
-#define BUTTON_RIGHT        BUTTON_FORWARD          
+#define BUTTON_LEFT         BUTTON_BACK
+#define BUTTON_RIGHT        BUTTON_FORWARD
 
 #define ACCEL_TWIST         (1 << 0)
 
@@ -203,33 +212,39 @@ enum STATE GetBleStateIfNew(enum STATE state)
 //
 
 int TrAccel(
+    int condition
     )
 {
     return 0;
 }
 
 int TrBle(
+    int condition
     )
 {
     return 0;
 }
 
 int TrButton(
+    int condition
     )
 {
     return 0;
 }
 
 int TrGoToSleep(
+    int condition
     )
 {
     return 0;
 }
 
 int TrVoice(
+    int condition
     )
 {
-    return 1;
+    return (condition == VOICE_ACTIVITY && ListenActivity())
+        || (condition == VOICE_TIMEOUT && ListenTimeout());
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -242,11 +257,12 @@ void SmOff(
     int call
     )
 {
-    if (call == FIRST_STATE_CALL) {
-        DisplayInit();
-        SerialRamInit();
-        BufQueueInit();
-    }
+    // Note: SmOff only gets called (once) on power up...
+
+    //
+    // Initialization that's required at boot once SM is running.
+    //
+    TickInit();
 }
 
 void SmSleep(
@@ -261,8 +277,46 @@ void SmTime(
     int call
     )
 {
+    static uint since1 = 0;
+    static uint since2 = 0;
+    int font = FONT_5X8;
+    int micHeight = GetFontHeight(font);
+    int micWidth = GetCharWidth(MIC_CHAR, font);
+
+    DrawStatusBar(call == FIRST_STATE_CALL);
+
     if (call == FIRST_STATE_CALL) {
-        Post();
+        ListenStart();
+    }
+
+    // FIXME: currently doind seconds calc - switch to minutes
+    if (Expired(1000, &since1)) {
+        char s[10];
+        uint curMinTick = GetTick() / 1000;
+        sprintf(s, "%2d:%02d", curMinTick / 60, curMinTick % 60);
+        char * a[] = {s};
+        RECT r = (RECT) {
+            0,
+            STATUS_BAR_HEIGHT,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT - STATUS_BAR_HEIGHT - micHeight
+            };
+        DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
+
+    }
+    if (Expired(50, &since2)) {
+        char s[] = {MIC_CHAR, 0};
+        DrawText(s, 0, SCREEN_HEIGHT - micHeight, font, WHITE, BLACK);
+        int level = ListenLevel();
+        int barX = micWidth + 4;
+        int barWidth = barX + (level * SCREEN_WIDTH / (2 * LISTEN_HIGH_THRESHOLD));
+        int maxBarWidth = SCREEN_WIDTH - barX;
+
+        RECT r;
+        r = (RECT) {barX, SCREEN_HEIGHT - micHeight, barWidth, micHeight};
+        DrawRect(r, GREEN);
+        r = (RECT) {barX + barWidth, SCREEN_HEIGHT - micHeight, maxBarWidth - barWidth, micHeight};
+        DrawRect(r, BLACK);
     }
 }
 
@@ -493,6 +547,16 @@ const struct {
         }},
 };
 
+const struct {
+    int (*condition)(int);
+    char * name;
+} transitionNames[] = {
+    { NAME(TrAccel) },
+    { NAME(TrBle) },
+    { NAME(TrButton) },
+    { NAME(TrGoToSleep) },
+    { NAME(TrVoice) },
+};
 
 //
 // Main entry point:
@@ -529,6 +593,11 @@ int main()
 
     Timer_Programmable_Init();
 
+    DisplayInit();
+    SerialRamInit();
+    BufQueueInit();
+    Post();
+
     //
     // Verify state machine state field
     //
@@ -549,7 +618,7 @@ int main()
     for (;;) {
         const struct TRANSITION * ptransition;
         CyBle_ProcessEvents();
-        
+
         if (first) {
             xprintf("+State %s\r\n", SM[state].name);
         }
@@ -558,10 +627,17 @@ int main()
         ptransition = &SM[state].transition[0];
         while (ptransition->newState != NONE) {
             if (!ptransition->condition || ptransition->condition(ptransition->condArg)) {
-                int newState = ptransition->newState;
-                xprintf("-State %s\r\n", SM[state].name);
-                SM[state].func(newState, LAST_STATE_CALL);
-                state = newState;
+                char * trName;
+                for (i = 0; i < ARRAY_SIZEOF(transitionNames); i++) {
+                    if (ptransition->condition == transitionNames[i].condition) break;
+                }
+                trName = i >= ARRAY_SIZEOF(transitionNames) ? "???" : transitionNames[i].name;
+
+                xprintf("-State %s (--- %s ---> %s)\r\n",
+                    SM[state].name, trName, SM[ptransition->newState].name
+                    );
+                SM[state].func(ptransition->newState, LAST_STATE_CALL);
+                state = ptransition->newState;
                 first = 1;
                 break;
             }

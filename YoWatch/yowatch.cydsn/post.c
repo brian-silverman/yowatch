@@ -29,7 +29,7 @@ void MicrophonePost(
     int lsbChange, msbChange;
     int fail = 0;
     uint32 savedTimerPeriod;
-    uint8 * pbuf1 = SerialRamGetBuf(0);
+    uint8 * pbuf1 = SerialRamGetBuf(PING_PONG_BUF_0);
     
     savedTimerPeriod = Timer_1_ReadPeriod();
 
@@ -154,5 +154,6 @@ void Post(
 
     xprintf("Total Memory: %dk\r\n", (int) (SerialRamTotalSize()/1024));
 
+    // Run optional test suite
     TestSuite();
 }
