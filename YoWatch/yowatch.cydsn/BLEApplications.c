@@ -5,10 +5,18 @@
  */
 #include <BLEApplications.h>
 #include <stdio.h>
+#include "assert.h"
 
 uint16 negotiatedMtu = DEFAULT_MTU_SIZE;
 
 #define MAX_WRITE_CALLBACKS (16)
+
+typedef CYBLE_API_RESULT_T 
+    BLE_WRITE_CALLBACK_T(
+        CYBLE_GATT_DB_ATTR_HANDLE_T handle,
+        uint8 * data, 
+        int len
+    );
 
 struct {
     struct {
@@ -34,7 +42,7 @@ CYBLE_API_RESULT_T BleSendNotification(
     return CyBle_GattsNotification(cyBle_connHandle, &notification);
 }
 
-CYBLE_API_RESULT_T BleRegisterWriteCallback(
+static CYBLE_API_RESULT_T BleRegisterWriteCallback(
     BLE_WRITE_CALLBACK_T * callback,
     int serviceIndex,
     int characteristicIndex
@@ -76,6 +84,7 @@ CYBLE_API_RESULT_T BleReadCharacteristic(
     // TBD
     return -1;
 }
+
 /*! 
  * Custom BLE event handler
  *
@@ -154,8 +163,44 @@ void CustomEventHandler(uint32 event, void * eventParam)
     }
 }
 
-CYBLE_API_RESULT_T BleStart()
+static __inline__ CYBLE_API_RESULT_T _OnBleRecv(
+    CYBLE_GATT_DB_ATTR_HANDLE_T handle,
+    uint8 * data,
+    int len
+    )
 {
-    return CyBle_Start(CustomEventHandler);    
+    OnBleRecv(data, len);
+    return 0;
+}
+
+//
+// Send a packet over BLE.
+//
+// @param data  payload
+// @param len   length of payload
+//
+// @return 0 on success, else error.  
+//
+// NOTE: the error CYBLE_ERROR_MEMORY_ALLOCATION_FAILED can often occur and
+// the packet should just be retried.  However, it must be retried AFTER the
+// next call to CyBle_ProcessEvents(), or it will still fail.
+//
+CYBLE_API_RESULT_T BleSend(
+    uint8 * data,
+    int len
+    )
+{
+    return BleSendNotification(CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, data, len);
+}
+
+void BleStart(
+    )
+{
+    assert(CyBle_Start(CustomEventHandler) == CYBLE_ERROR_OK);
+    BleRegisterWriteCallback(
+        _OnBleRecv,
+        CYBLE_SMARTWATCH_SERVICE_SERVICE_INDEX,
+        CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_INDEX
+        );
 }
 

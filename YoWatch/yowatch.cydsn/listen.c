@@ -95,3 +95,9 @@ void ListenStart(
     head = tail = len = 0;
     I2sStartDma(NULL, NULL);
 }
+
+void ListenStop(
+    )
+{
+    I2sStopDma();
+}

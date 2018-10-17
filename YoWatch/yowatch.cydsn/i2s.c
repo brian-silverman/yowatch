@@ -78,6 +78,9 @@ static void I2sRxDmaIsr(void)
 //              are used.
 // @param isr   ISR called on DMA completion.  If NULL, use default ISR.
 //
+// @return The previous buffer that was filled via DMA, if using ping-pong
+// bufs.
+//
 // As the completion ISR starts another DMA transaction when this one
 // completes, the sequenece of DMAs will run forever until stopped
 // (via I2sStopDma())

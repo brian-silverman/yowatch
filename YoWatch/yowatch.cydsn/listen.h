@@ -18,6 +18,9 @@ int ListenTimeout(
 void ListenStart(
     );
 
+void ListenStop(
+    );
+
 uint ListenLevel(
     );
 

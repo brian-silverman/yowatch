@@ -15,8 +15,6 @@
 #include "assert.h"
 #include "util.h"
 
-#define TICKS_PER_PERIOD_MS 65000
-
 uint periodCount = 0;
 
 CY_ISR(TimerMillisecIsr)
@@ -43,8 +41,8 @@ void TickInit(
 
     TimerMillisec_Init();
     TimerMillisec_SetOneShot(0);
-    TimerMillisec_WritePeriod(TICKS_PER_PERIOD_MS - 1);
-    TimerMillisec_WriteCompare(TICKS_PER_PERIOD_MS - 1);
+    TimerMillisec_WritePeriod(0);
+    TimerMillisec_WriteCompare(0);
     TimerMillisec_WriteCounter(0);
     TimerMillisec_Enable();
 }
@@ -52,7 +50,7 @@ void TickInit(
 uint GetTick(
     )
 {
-    return periodCount * TICKS_PER_PERIOD_MS + TimerMillisec_ReadCounter() % TICKS_PER_PERIOD_MS;
+    return periodCount;
 }
 
 int Expired(
@@ -62,7 +60,7 @@ int Expired(
 {
     uint now = GetTick();
     int elapsed = now - *since;
-    assert(elapsed > 0);
+    assert_printf(elapsed > 0, "%d, %d, %d\r\n", elapsed, now, *since);
     if (elapsed > msec) {
         *since = now - (elapsed - msec);
         return 1;

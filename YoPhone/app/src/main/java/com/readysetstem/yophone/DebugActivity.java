@@ -72,13 +72,15 @@ public class DebugActivity extends BleServiceConnectionActivity {
         mActionBar.setTitle(R.string.debug_title);
         mActionBar.setDisplayHomeAsUpEnabled(true);
 
+        mMicRecording = null;
+
         onConnectionState();
         onBluetoothData(true);
     }
 
     public void onBleServiceConnected() {
         Log.i(TAG, "onBleServiceConnected()");
-        // TODO could simplify with a single write function
+        if (mBleService == null) return;
         BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         Log.i(TAG, characteristic.getUuid().toString());
@@ -99,6 +101,14 @@ public class DebugActivity extends BleServiceConnectionActivity {
                     switch (data[0]) {
                         // TODO Need to make hardcoded command constants
                         case 3:
+                            // TODO Verify packets as they come in (incrementing uint32)
+                            if (mSpeedtestPackets % 32 == 0) {
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        // TODO Do not use hardcoded constants
+        characteristic.setValue(6, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        mBleService.writeCharacteristic(characteristic);
+                            }
                             mSpeedtestPackets++;
                             mTvSpeedtestKbps.setText(show ? String.valueOf(mSpeedtestPackets) + "%" : "");
                             mLen = data.length;
@@ -111,10 +121,12 @@ public class DebugActivity extends BleServiceConnectionActivity {
                             mIvSpeedtestPlay.setColorFilter(null);
                             break;
                         case 5:
-                            try {
-                                mMicRecording.write(Arrays.copyOfRange(data, 4, data.length));
-                            } catch (IOException e) {
-                                e.printStackTrace();
+                            if (mMicRecording != null) {
+                                try {
+                                    mMicRecording.write(Arrays.copyOfRange(data, 4, data.length));
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
                             }
                             break;
                     }
@@ -139,7 +151,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickSpeedTest(View view) {
-        // TODO Verify packets as they come in (incrementing uint32)
+        if (mBleService == null) return;
         BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         // TODO Do not use hardcoded constants
@@ -154,7 +166,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickMicRecord(View view) {
-        // TODO Verify packets as they come in (incrementing uint32)
+        if (mBleService == null) return;
         BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         // TODO Do not use hardcoded constants
@@ -167,18 +179,21 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
     
     public void onClickMicStop(View view) {
+        if (mBleService == null) return;
         String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/yourfilename";
-        try (OutputStream outputStream = new FileOutputStream(name)) {
-            mMicRecording.writeTo(outputStream);
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (mMicRecording != null) {
+            try (OutputStream outputStream = new FileOutputStream(name)) {
+                    mMicRecording.writeTo(outputStream);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+        mMicRecording = null;
 
-        // TODO Verify packets as they come in (incrementing uint32)
         BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         // TODO Do not use hardcoded constants
-        characteristic.setValue(4, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        characteristic.setValue(0, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         mBleService.writeCharacteristic(characteristic);
 
         mIvMicRecord.setEnabled(true);

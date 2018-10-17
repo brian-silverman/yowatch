@@ -165,7 +165,7 @@ static void DequeueBytesDone(
 // The buffer is removed from the queue head, but the head will only be updated
 // once the DMA completes.
 //
-// @param buf       buffer to be dequeued to Serial RAM, mus have been created
+// @param buf       buffer to be dequeued to Serial RAM, must have been created
 //                  with SerialRamGetBuf()
 // @param bytes     size in bytes of /buf/
 // @param pDone     flag that will be set when DMA completes

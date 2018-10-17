@@ -1467,15 +1467,11 @@ void TestSuite()
     MTEST(TestDrawLineHorzVert());
     MTEST(TestDrawLineDiag());
     MTEST(TestDrawRect());
-#endif
     MTEST(TestMicVolumeMeter());
-#if 0
     MTEST(TestDrawImage());
     MTEST(TestDrawStatusBar());
     MTEST(TestFont("FONT_ZINGDINGS_8X8", FONT_ZINGDINGS_8X8));
     MTEST(TestColors());
-#endif
-#if 0
     MTEST(TestTextBox());
     MTEST(TestVerticalJustifiedTextBox());
 #endif
