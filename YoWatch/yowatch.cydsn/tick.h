@@ -5,4 +5,9 @@ void TickInit();
 
 uint GetTick();
 
+int Expired(
+    uint msec,
+    uint * since
+    );
+
 #endif

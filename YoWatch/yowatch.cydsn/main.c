@@ -150,34 +150,25 @@ CYBLE_API_RESULT_T OnDebugCommandCharacteristic(
     int len
     )
 {
-#if 0
     // TODO Fix hardcoded constants
     switch (*data) {
         case 0: // Exit debug mode
-            bleSelectedNextState = SLEEP;
+            xprintf("Debug 1\r\n");
             break;
         case 1: // Go to debug
-            if (state == SLEEP) {
-                bleSelectedNextState = DEBUG_IDLE;
-            }
-            xprintf("Go to DEBUG_IDLE\r\n");
+            xprintf("Debug 2\r\n");
             break;
         case 2: // Go to debug speedtest
             speedTestPackets = 100; // TODO need correct # packets
-            if (state == DEBUG_IDLE) {
-                bleSelectedNextState = DEBUG_SPEEDTEST;
-            }
+            xprintf("Debug 3\r\n");
             break;
-        case 3:
-            if (state == DEBUG_IDLE) {
-                bleSelectedNextState = DEBUG_MIC;
-            }
+        case 3: // debug mic
+            xprintf("Debug 4\r\n");
             break;
         default:
-            bleSelectedNextState = NONE;
+            xprintf("Debug ?\r\n");
             break;
     }
-#endif
 
     return 0;
 }
@@ -193,17 +184,6 @@ void OnConnectionChange(
     uint8 c = 0;
     BleWriteCharacteristic(CYBLE_SMARTWATCH_SERVICE_VOICE_DATA_CHAR_HANDLE, &c, sizeof(c));
     deviceConnected = connected;
-}
-
-enum STATE GetBleStateIfNew(enum STATE state)
-{
-#if 0
-    if (bleSelectedNextState != NONE) {
-        state = bleSelectedNextState;
-    }
-    bleSelectedNextState = NONE;
-#endif
-    return state;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -222,6 +202,13 @@ int TrBle(
     int condition
     )
 {
+    //xprintf("%d\r\n", condition);
+    if (condition & BLE_END_TEST) {
+        return speedTestPackets < 0;
+    }
+    if (condition & BLE_SPEED_TEST) {
+        return speedTestPackets > 0;
+    }
     return 0;
 }
 
@@ -262,7 +249,6 @@ void SmOff(
     //
     // Initialization that's required at boot once SM is running.
     //
-    TickInit();
 }
 
 void SmSleep(
@@ -369,41 +355,35 @@ void SmSpeedTest(
     int call
     )
 {
-#if 0
-    case DEBUG_SPEEDTEST:
+    static int n = 0;
+    int ret;
+
+    if (call == FIRST_STATE_CALL) {
+        n = 0;
+    }
+    if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
         if (speedTestPackets > 0) {
-            if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                ((uint32 *) buffer)[0] = 0;
-                buffer[0] = 3;
-                ((uint32 *) buffer)[1] = n++;
-                ((uint32 *) buffer)[2] = 0x11223344;
+            ((uint32 *) buffer)[0] = 0;
+            buffer[0] = 3;
+            ((uint32 *) buffer)[1] = n++;
+            ((uint32 *) buffer)[2] = 0x11223344;
 
-                ret = BleSendNotification(
-                    CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
-                if (ret == 0) {
-                    speedTestPackets--;
-                }
+            ret = BleSendNotification(
+                CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 500);
+            if (ret == 0) {
+                speedTestPackets--;
             }
-        } else {
-            newState = DEBUG_SPEEDTEST_2;
-        }
-        newState = GetBleStateIfNew(newState);
-        break;
-
-    case DEBUG_SPEEDTEST_2:
-        if(CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+        } else if (speedTestPackets == 0) {
             ((uint32 *) buffer)[0] = 0;
             buffer[0] = 4;
 
             ret = BleSendNotification(
                 CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, buffer, 1);
             if (ret == 0) {
-                newState = DEBUG_IDLE;
+                speedTestPackets--;
             }
         }
-        newState = GetBleStateIfNew(newState);
-        break;
-#endif
+    }
 }
 
 void SmMicTest(
@@ -495,6 +475,7 @@ const struct {
         { TrGoToSleep, 0, SLEEP },
         { TrVoice, VOICE_ACTIVITY, VOICE },
         { TrButton, BUTTON_FORWARD, MSGS },
+        { TrBle, BLE_SPEED_TEST | BLE_MIC_TEST, SPEED_TEST },  // DEBUG
         }},
     { NAME(VOICE), SmVoice, {
         { TrBle, BLE_DISCONNECT, DISCONNECT },
@@ -598,6 +579,9 @@ int main()
     BufQueueInit();
     Post();
 
+    // Tick API timer may be used in Post(), so init after
+    TickInit();
+
     //
     // Verify state machine state field
     //
@@ -612,6 +596,7 @@ int main()
     //
     // SM
     //
+    uint since = 0;
     prevState = NONE;
     state = OFF;
     first = 1;
@@ -622,10 +607,15 @@ int main()
         if (first) {
             xprintf("+State %s\r\n", SM[state].name);
         }
+        if (Expired(1000, &since)) {
+            xprintf("Tick %d\r\n", GetTick());
+        }
+
         SM[state].func(prevState, first ? FIRST_STATE_CALL : MIDDLE_STATE_CALL);
         first = 0;
-        ptransition = &SM[state].transition[0];
-        while (ptransition->newState != NONE) {
+        int transitionIndex = 0;
+        ptransition = &SM[state].transition[transitionIndex];
+        while (transitionIndex < MAX_STATE_TRANSITIONS && ptransition->newState != NONE) {
             if (!ptransition->condition || ptransition->condition(ptransition->condArg)) {
                 char * trName;
                 for (i = 0; i < ARRAY_SIZEOF(transitionNames); i++) {
@@ -642,6 +632,8 @@ int main()
                 break;
             }
             ptransition++;
+            transitionIndex++;
+            //CyDelay(10);
         }
 
         prevState = state;
