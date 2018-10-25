@@ -383,46 +383,59 @@ void SmCustomCmd(
 {
 }
 
+int BleSendWait(
+    uint8 * data,
+    int len,
+    int waitForResponse
+    )
+{
+    static int waitingForResponse = 0;
+    int ret = -EAGAIN;
+
+    if (waitingForResponse) {
+        if (bleTransitionFlags & BLE_RESPONSE) {
+            waitingForResponse = 0;
+        }
+    } else {
+        ret = BleSend(data, len);
+        if (ret == 0 && waitForResponse) {
+            waitingForResponse = 1;
+        }
+    }
+
+    return ret;
+}
+
 void SmSpeedTest(
     int prevState,
     int call
     )
 {
     static int n = 0;
-    static int waitForResponse = 0;
     int ret;
 
     if (call == FIRST_STATE_CALL) {
         n = 0;
     } else if (call == MIDDLE_STATE_CALL) {
-        if (waitForResponse) {
-            if (bleTransitionFlags & BLE_RESPONSE) {
-                waitForResponse = 0;
-            }
-        } else {
-            if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-                if (speedTestPackets > 0) {
-                    ((uint32 *) bleBuf)[0] = 0;
-                    bleBuf[0] = 3;
-                    ((uint32 *) bleBuf)[1] = n;
-                    ((uint32 *) bleBuf)[2] = 0x11223344;
+        if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            if (speedTestPackets > 0) {
+                ((uint32 *) bleBuf)[0] = 0;
+                bleBuf[0] = 3;
+                ((uint32 *) bleBuf)[1] = n;
+                ((uint32 *) bleBuf)[2] = 0x11223344;
 
-                    ret = BleSend(bleBuf, 500);
-                    if (ret == 0) {
-                        speedTestPackets--;
-                        if (n % 32 == 0) {
-                            waitForResponse = 1;
-                        }
-                        n++;
-                    }
-                } else if (speedTestPackets == 0) {
-                    ((uint32 *) bleBuf)[0] = 0;
-                    bleBuf[0] = 4;
+                ret = BleSendWait(bleBuf, 500, n % 32 == 0);
+                if (ret == 0) {
+                    speedTestPackets--;
+                    n++;
+                }
+            } else if (speedTestPackets == 0) {
+                ((uint32 *) bleBuf)[0] = 0;
+                bleBuf[0] = 4;
 
-                    ret = BleSend(bleBuf, 1);
-                    if (ret == 0) {
-                        speedTestPackets--;
-                    }
+                ret = BleSend(bleBuf, 1);
+                if (ret == 0) {
+                    speedTestPackets--;
                 }
             }
         }
@@ -436,30 +449,28 @@ void SmMicTest(
     )
 {
     static int lastWasSent;
-    static int pkts = 0;
+    static int n = 0;
     int ret;
 
     if (call == FIRST_STATE_CALL) {
         BufQueueInit();
         I2sStartDma(NULL, NULL);
         lastWasSent = 1;
-        pkts = 100;
+        n = 0;
 
     } else if (call == MIDDLE_STATE_CALL) {
         if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
-            if (pkts) {
-                if (lastWasSent) {
-                    ret = DequeueBytesBlocking(&bleBuf[4], 496);
-                    if (ret == -ENODATA) return;
-                }
+            if (lastWasSent) {
+                ret = DequeueBytesBlocking(&bleBuf[4], 496);
+                if (ret == -ENODATA) return;
+            }
 
-                ((uint32 *) bleBuf)[0] = 0;
-                bleBuf[0] = 5;
-                ret = BleSend(bleBuf, 500);
-                lastWasSent = ret == 0;
-                if (lastWasSent) {
-                    pkts--;
-                }
+            ((uint32 *) bleBuf)[0] = 0;
+            bleBuf[0] = 5;
+            ret = BleSendWait(bleBuf, 500, n % 32 == 0);
+            lastWasSent = ret == 0;
+            if (lastWasSent) {
+                n++;
             }
         }
 

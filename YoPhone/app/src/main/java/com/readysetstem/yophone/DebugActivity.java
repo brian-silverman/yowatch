@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect, display data,
@@ -52,6 +54,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     ByteArrayOutputStream mMicRecording;
     private int mLen;
     private int mSpeedtestPackets;
+    private int mmm;
     private long mStartTime;
 
     @Override
@@ -106,7 +109,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
         BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         // TODO Do not use hardcoded constants
-        characteristic.setValue(6, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        characteristic.setValue(0, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         mBleService.writeCharacteristic(characteristic);
                             }
                             mSpeedtestPackets++;
@@ -121,6 +124,14 @@ public class DebugActivity extends BleServiceConnectionActivity {
                             mIvSpeedtestPlay.setColorFilter(null);
                             break;
                         case 5:
+                            if (mSpeedtestPackets % 32 == 0) {
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        // TODO Do not use hardcoded constants
+        characteristic.setValue(mmm, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+        mBleService.writeCharacteristic(characteristic);
+                            }
+                            mSpeedtestPackets++;
                             if (mMicRecording != null) {
                                 try {
                                     mMicRecording.write(Arrays.copyOfRange(data, 4, data.length));
@@ -173,28 +184,52 @@ public class DebugActivity extends BleServiceConnectionActivity {
         characteristic.setValue(3, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
         mBleService.writeCharacteristic(characteristic);
 
+        mSpeedtestPackets = 0;
+        mmm = 6;
         mMicRecording = new ByteArrayOutputStream();
         mIvMicRecord.setEnabled(false);
         mIvMicRecord.setColorFilter(Color.argb(150,200,200,200));
     }
-    
+
+    private byte[] DoubleWordToByteArray(long w) {
+        return new byte[] {(byte) ((w>>0)&0xFF), (byte) ((w>>8)&0xFF),
+                           (byte) ((w>>16)&0xFF), (byte) ((w>>24)&0xFF)};
+
+    }
+    private byte[] WordToByteArray(long w) {
+        return new byte[] {(byte) ((w>>0)&0xFF), (byte) ((w>>8)&0xFF)};
+
+    }
+
     public void onClickMicStop(View view) {
         if (mBleService == null) return;
-        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/yourfilename";
+        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/foo.wav";
         if (mMicRecording != null) {
+            Log.i(TAG, "onClickMicStop()");
+
             try (OutputStream outputStream = new FileOutputStream(name)) {
-                    mMicRecording.writeTo(outputStream);
+                outputStream.write("RIFF".getBytes(StandardCharsets.UTF_8));
+                outputStream.write(DoubleWordToByteArray(mMicRecording.size() + 36));
+                outputStream.write("WAVE".getBytes(StandardCharsets.UTF_8));
+                outputStream.write("fmt ".getBytes(StandardCharsets.UTF_8));
+                outputStream.write(DoubleWordToByteArray(0x10));
+                outputStream.write(WordToByteArray(1));
+                outputStream.write(WordToByteArray(1));
+                outputStream.write(DoubleWordToByteArray(0x3e80));
+                outputStream.write(DoubleWordToByteArray(0x7d00));
+                outputStream.write(WordToByteArray(2));
+                outputStream.write(WordToByteArray(16));
+                outputStream.write("data".getBytes(StandardCharsets.UTF_8));
+                outputStream.write(DoubleWordToByteArray(mMicRecording.size()));
+
+                mMicRecording.writeTo(outputStream);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
         mMicRecording = null;
 
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        // TODO Do not use hardcoded constants
-        characteristic.setValue(0, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        mBleService.writeCharacteristic(characteristic);
+        mmm = 0;
 
         mIvMicRecord.setEnabled(true);
         mIvMicRecord.setColorFilter(null);
