@@ -59,6 +59,8 @@ public class BleService extends Service {
 
     private int mRxPackets = 0;
 
+    private BleService mThisBleService = this;
+
     private String[] characteristicsWithNotifications = {
             GattAttributes.CHARACTERISTIC_VOICE_DATA,
             GattAttributes.CHARACTERISTIC_DEBUG_COMMAND,
@@ -129,6 +131,8 @@ public class BleService extends Service {
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
             Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
+
+            BleComm.Recv(mThisBleService, characteristic);
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             mRxPackets++;
         }

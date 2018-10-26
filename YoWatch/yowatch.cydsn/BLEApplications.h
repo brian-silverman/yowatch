@@ -24,9 +24,15 @@ void OnBleRecv(
     int len
     );
 
-CYBLE_API_RESULT_T BleSend(
-    uint8 * data,
-    int len
+int BleSendWait(
+    int cmd,
+    int state,
+    uint8 * buf,
+    int len,
+    int waitForResponse
+    );
+
+uint8 * BleGetBuf(
     );
 
 #endif

@@ -78,13 +78,9 @@
 #include "util.h"
 #include "tick.h"
 #include "listen.h"
+#include "bleapi.h"
 
 #define MIC_CHAR 'X'
-
-//
-// BLE buffer
-//
-static uint8 bleBuf[MAX_MTU_SIZE+4];
 
 //
 // Global commmunication flags between asynchornous BLE messages and state
@@ -158,30 +154,22 @@ void OnBleRecv(
     int len
     )
 {
-    // TODO Fix hardcoded constants
+    xprintf("Debug %d\r\n", *data);
     switch (*data) {
-        case 0: // Exit debug mode
+        case BLE_P2W_MIC_RECORD_END:
             bleTransitionFlags = BLE_END_TEST;
-            xprintf("Debug 0\r\n");
             break;
-        case 1: // Go to debug
-            xprintf("Debug 1\r\n");
-            break;
-        case 2: // Go to debug speedtest
+        case BLE_P2W_SPEEDTEST_START:
             bleTransitionFlags = BLE_SPEED_TEST;
             speedTestPackets = 100; // TODO need correct # packets
-            xprintf("Debug 2, %d\r\n", len);
             break;
-        case 3: // debug mic
+        case BLE_P2W_MIC_RECORD_START:
             bleTransitionFlags = BLE_MIC_TEST;
-            xprintf("Debug 3\r\n");
             break;
-        case 6:
+        case BLE_P2W_MIC_RECORD_CONTINUE:
             bleTransitionFlags = BLE_RESPONSE;
-            //xprintf("Debug 6\r\n");
             break;
         default:
-            xprintf("Debug ?\r\n");
             break;
     }
 }
@@ -194,6 +182,7 @@ void OnConnectionChange(
     int connected
     )
 {
+    xprintf("%s\r\n", connected ? "CONNECTED" : "DISCONNECTED");
     deviceConnected = connected;
 }
 
@@ -216,12 +205,6 @@ int TrBle(
     )
 {
     uint doTransition = bleTransitionFlags & transitionType;
-#if 0
-    if (doTransition || bleTransitionFlags) {
-        xprintf("%08X, %08X, %08X\r\n", doTransition, bleTransitionFlags, transitionType);
-    }
-#endif
-
     return doTransition;
 }
 
@@ -268,7 +251,8 @@ int TrSpecial(
 //
 
 void SmOff(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
@@ -280,30 +264,48 @@ void SmOff(
 }
 
 void SmSleep(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
 }
 
 void SmTime(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
     static uint since1 = 0;
     static uint since2 = 0;
+    static uint since3 = 0;
     int font = FONT_5X8;
     int micHeight = GetFontHeight(font);
     int micWidth = GetCharWidth(MIC_CHAR, font);
+    int ret;
+    static int sending = 0;
 
     DrawStatusBar(call == FIRST_STATE_CALL);
 
     if (call == FIRST_STATE_CALL) {
         ListenStart();
+        sending = 0;
 
     } else if (call == MIDDLE_STATE_CALL) {
         // FIXME: currently doind seconds calc - switch to minutes
+        if (Expired(4000, &since3)) {
+            xprintf("Sending\r\n");
+            sending = 1;
+        }
+        if (sending) {
+            uint8 * bleBuf = BleGetBuf();
+            ret = BleSendWait(BLE_W2P_SPEEDTEST_PACKET, state, bleBuf, 496, 1);
+            if (ret == 0) {
+                xprintf("Sending done\r\n");
+                sending = 0;
+            }
+        }
         if (Expired(1000, &since1)) {
             char s[10];
             uint curMinTick = GetTick() / 1000;
@@ -316,7 +318,6 @@ void SmTime(
                 SCREEN_HEIGHT - STATUS_BAR_HEIGHT - micHeight
                 };
             DrawTextBox(a, 1, r, 0, HCENTER_JUSTIFIED | VCENTER_JUSTIFIED, FONT_TIME, WHITE, BLACK);
-
         }
         if (Expired(50, &since2)) {
             char s[] = {MIC_CHAR, 0};
@@ -335,33 +336,67 @@ void SmTime(
         }
 
     } else if (call == LAST_STATE_CALL) {
-        ListenStop();
+        //
+        // Stop listening /unless/ we're going to the VOICE state
+        //
+        if (otherState != VOICE) {
+            ListenStop();
+        }
     }
 }
 
 void SmVoice(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
+    static int lastWasSent;
+    static int n = 0;
+    int ret;
+
+    if (call == FIRST_STATE_CALL) {
+        lastWasSent = 1;
+        n = 0;
+
+    } else if (call == MIDDLE_STATE_CALL) {
+        if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            uint8 * bleBuf = BleGetBuf();
+            if (lastWasSent) {
+                ret = DequeueBytesBlocking(bleBuf, 496);
+                if (ret == -ENODATA) return;
+            }
+
+            //ret = BleSendWait(bleBuf, 500, n % 32 == 0);
+            lastWasSent = ret == 0;
+            if (lastWasSent) {
+                n++;
+            }
+        }
+
+    } else if (call == LAST_STATE_CALL) {
+    }
 }
 
 void SmMsgs(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
 }
 
 void SmMsgView(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
 }
 
 void SmRunCmd(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
@@ -370,73 +405,40 @@ void SmRunCmd(
 }
 
 void SmResult(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
 }
 
 void SmCustomCmd(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
-}
-
-int BleSendWait(
-    uint8 * data,
-    int len,
-    int waitForResponse
-    )
-{
-    static int waitingForResponse = 0;
-    int ret = -EAGAIN;
-
-    if (waitingForResponse) {
-        if (bleTransitionFlags & BLE_RESPONSE) {
-            waitingForResponse = 0;
-        }
-    } else {
-        ret = BleSend(data, len);
-        if (ret == 0 && waitForResponse) {
-            waitingForResponse = 1;
-        }
-    }
-
-    return ret;
 }
 
 void SmSpeedTest(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
-    static int n = 0;
-    int ret;
+    int ret = -1;
 
     if (call == FIRST_STATE_CALL) {
-        n = 0;
     } else if (call == MIDDLE_STATE_CALL) {
         if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            uint8 * bleBuf = BleGetBuf();
             if (speedTestPackets > 0) {
-                ((uint32 *) bleBuf)[0] = 0;
-                bleBuf[0] = 3;
-                ((uint32 *) bleBuf)[1] = n;
-                ((uint32 *) bleBuf)[2] = 0x11223344;
-
-                ret = BleSendWait(bleBuf, 500, n % 32 == 0);
-                if (ret == 0) {
-                    speedTestPackets--;
-                    n++;
-                }
+                ret = BleSendWait(BLE_W2P_SPEEDTEST_PACKET, state, bleBuf, 496, 0);
             } else if (speedTestPackets == 0) {
-                ((uint32 *) bleBuf)[0] = 0;
-                bleBuf[0] = 4;
-
-                ret = BleSend(bleBuf, 1);
-                if (ret == 0) {
-                    speedTestPackets--;
-                }
+                ret = BleSendWait(BLE_W2P_SPEEDTEST_FINAL, state, bleBuf, 0, 0);
+            }
+            if (ret == 0) {
+                speedTestPackets--;
             }
         }
     } else if (call == LAST_STATE_CALL) {
@@ -444,7 +446,8 @@ void SmSpeedTest(
 }
 
 void SmMicTest(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
@@ -460,14 +463,13 @@ void SmMicTest(
 
     } else if (call == MIDDLE_STATE_CALL) {
         if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
+            uint8 * bleBuf = BleGetBuf();
             if (lastWasSent) {
-                ret = DequeueBytesBlocking(&bleBuf[4], 496);
+                ret = DequeueBytesBlocking(bleBuf, 496);
                 if (ret == -ENODATA) return;
             }
 
-            ((uint32 *) bleBuf)[0] = 0;
-            bleBuf[0] = 5;
-            ret = BleSendWait(bleBuf, 500, n % 32 == 0);
+            ret = BleSendWait(BLE_W2P_MIC_RECORDING, state, bleBuf, 500, n % 32 == 0);
             lastWasSent = ret == 0;
             if (lastWasSent) {
                 n++;
@@ -480,7 +482,8 @@ void SmMicTest(
 }
 
 void SmDisconnect(
-    int prevState,
+    int state,
+    int otherState,
     int call
     )
 {
@@ -494,7 +497,7 @@ void SmDisconnect(
 const struct {
     int state;
     char * name;
-    void (*func)(int, int);
+    void (*func)(int, int, int);
     struct TRANSITION {
         int (*transTest)(int, int);
         int transArg;
@@ -514,8 +517,8 @@ const struct {
         { TrGoToSleep, 0, SLEEP },
         //{ TrVoice, VOICE_ACTIVITY, VOICE },
         { TrButton, BUTTON_FORWARD, MSGS },
-        { TrBle, BLE_SPEED_TEST, SPEED_TEST }, //DEBUG (move to SLEEP)
-        { TrBle, BLE_MIC_TEST, MIC_TEST }, //DEBUG (move to SLEEP)
+        { TrBle, BLE_SPEED_TEST, SPEED_TEST },
+        { TrBle, BLE_MIC_TEST, MIC_TEST },
         }},
     { NAME(VOICE), SmVoice, {
         { TrBle, BLE_DISCONNECT, DISCONNECT },
@@ -557,12 +560,12 @@ const struct {
         { TrButton, BUTTON_BACK, TIME },
         }},
     { NAME(SPEED_TEST), SmSpeedTest, {
-        { TrBle, BLE_END_TEST, TIME /*SLEEP*/ },
+        { TrBle, BLE_END_TEST, TIME },
         { TrButton, BUTTON_BACK, TIME },
-        { TrSpecial, SPECIAL_SPEED_TEST_END, TIME /*SLEEP*/ },
+        { TrSpecial, SPECIAL_SPEED_TEST_END, TIME },
         }},
     { NAME(MIC_TEST), SmMicTest, {
-        { TrBle, BLE_END_TEST, TIME /*SLEEP*/ },
+        { TrBle, BLE_END_TEST, TIME },
         { TrButton, BUTTON_BACK, TIME },
         }},
     { NAME(DISCONNECT), SmDisconnect, {
@@ -579,6 +582,7 @@ const struct {
     { NAME(TrButton) },
     { NAME(TrGoToSleep) },
     { NAME(TrVoice) },
+    { NAME(TrSpecial) },
 };
 
 //
@@ -649,7 +653,7 @@ int main()
             xprintf("Tick %d, %d\r\n", GetTick(), CyBle_GetState());
         }
 
-        SM[state].func(prevState, first ? FIRST_STATE_CALL : MIDDLE_STATE_CALL);
+        SM[state].func(state, prevState, first ? FIRST_STATE_CALL : MIDDLE_STATE_CALL);
         first = 0;
         int transitionIndex = 0;
         ptransition = &SM[state].transition[transitionIndex];
@@ -664,7 +668,7 @@ int main()
                 xprintf("-State %s (--- %s ---> %s)\r\n",
                     SM[state].name, trName, SM[ptransition->newState].name
                     );
-                SM[state].func(ptransition->newState, LAST_STATE_CALL);
+                SM[state].func(state, ptransition->newState, LAST_STATE_CALL);
                 state = ptransition->newState;
                 first = 1;
                 break;

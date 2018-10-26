@@ -5,7 +5,27 @@
  */
 #include <BLEApplications.h>
 #include <stdio.h>
+#include <errno.h>
 #include "assert.h"
+#include "bleapi.h"
+
+//
+// Global BLE buffer used by BLE send calls.
+//
+static uint8 bleBuf[MAX_MTU_SIZE+4];
+struct BLE_HEADER {
+    uint16 cmd:5;
+    uint16 state:5;
+    uint16 requiresResponse:1;
+    uint16 reserved:5;
+    uint16 index;
+};
+#define BLE_SEND_HEADER_LEN sizeof(struct BLE_HEADER)
+uint16 bleCmdIndex[BLE_API_MAX_CMD_NUM];
+struct BLE_HEADER currentSendHdr;
+struct BLE_HEADER * pCurrentSendHdr;
+struct BLE_HEADER currentResponseHdr;
+struct BLE_HEADER * pCurrentResponseHdr;
 
 uint16 negotiatedMtu = DEFAULT_MTU_SIZE;
 
@@ -169,28 +189,82 @@ static __inline__ CYBLE_API_RESULT_T _OnBleRecv(
     int len
     )
 {
+    assert(len > sizeof(struct BLE_HEADER));
+    currentResponseHdr = *((struct BLE_HEADER *) data);
+    pCurrentResponseHdr = &currentResponseHdr;
     OnBleRecv(data, len);
     return 0;
 }
 
 //
-// Send a packet over BLE.
+// Send a packet over BLE, and async wait for response.
 //
-// @param data  payload
+// @param cmd   BLE_W2P_* cmd to send
+// @param state SM current state
+// @param buf   payload.  Must be the buffer returned by BleGetBuf()
 // @param len   length of payload
+// @param waitForResponse   
+//              If true, wait for response (see below)
 //
 // @return 0 on success, else error.  
 //
-// NOTE: the error CYBLE_ERROR_MEMORY_ALLOCATION_FAILED can often occur and
-// the packet should just be retried.  However, it must be retried AFTER the
-// next call to CyBle_ProcessEvents(), or it will still fail.
+// Intended to be called from main SM.  Call must be retried until return value
+// is 0 (success), but only retried once per SM loop, so that the
+// CyBle_ProcessEvents() is called.  When it returns success, this indicates
+// that the BLE packet was sent, and if waitForResponse is true, it also
+// indicates that a response has been received.
 //
-CYBLE_API_RESULT_T BleSend(
-    uint8 * data,
-    int len
+// NOTE: the error CYBLE_ERROR_MEMORY_ALLOCATION_FAILED can often occur from
+// BleSendNotification() and the packet should just be retried.  However, it
+// must be retried AFTER the next call to CyBle_ProcessEvents(), or it will
+// still fail.
+//
+int BleSendWait(
+    int cmd,
+    int state,
+    uint8 * buf,
+    int len,
+    int waitForResponse
     )
 {
-    return BleSendNotification(CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, data, len);
+    int ret;
+
+    if (pCurrentSendHdr) {
+        // TODO: timeout after ~1 second?
+        if (pCurrentResponseHdr && 
+            memcmp(pCurrentResponseHdr, pCurrentSendHdr, sizeof(*pCurrentSendHdr)) == 0) 
+        {
+            pCurrentSendHdr = NULL;
+            ret = 0;
+        }
+    } else {
+        struct BLE_HEADER * header = (struct BLE_HEADER *) &buf[BLE_SEND_HEADER_LEN];
+        header->cmd = cmd;
+        header->state = state;
+        assert(cmd > 0 && cmd <= BLE_API_MAX_CMD_NUM);
+        header->index = bleCmdIndex[cmd];
+
+        ret =  BleSendNotification(
+            CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE, (uint8 *) header, len
+            );
+        if (ret == 0 && waitForResponse) {
+            currentSendHdr = *header;
+            pCurrentSendHdr = &currentResponseHdr;
+            bleCmdIndex[cmd]++;
+            ret = -EAGAIN;
+        }
+    }
+
+    return ret;
+}
+
+//
+// Return the global BLE send buffer.
+//
+uint8 * BleGetBuf(
+    )
+{
+    return &bleBuf[BLE_SEND_HEADER_LEN];
 }
 
 void BleStart(

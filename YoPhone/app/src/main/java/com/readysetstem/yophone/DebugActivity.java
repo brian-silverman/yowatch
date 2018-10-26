@@ -26,6 +26,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.media.MediaPlayer;
+import android.net.Uri;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
@@ -51,11 +53,12 @@ public class DebugActivity extends BleServiceConnectionActivity {
     private ImageView mIvMicPlay;
     private ImageView mIvMicStop;
     private ImageView mIvMicRecord;
-    ByteArrayOutputStream mMicRecording;
+    private ByteArrayOutputStream mMicRecording;
     private int mLen;
     private int mSpeedtestPackets;
     private int mmm;
     private long mStartTime;
+    private String mMicFilename;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -76,6 +79,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
         mActionBar.setDisplayHomeAsUpEnabled(true);
 
         mMicRecording = null;
+        mMicFilename = Environment.getExternalStorageDirectory().getAbsolutePath() + "/micout.wav";
 
         onConnectionState();
         onBluetoothData(true);
@@ -83,12 +87,6 @@ public class DebugActivity extends BleServiceConnectionActivity {
 
     public void onBleServiceConnected() {
         Log.i(TAG, "onBleServiceConnected()");
-        if (mBleService == null) return;
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        Log.i(TAG, characteristic.getUuid().toString());
-        characteristic.setValue(1, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        mBleService.writeCharacteristic(characteristic);
     }
 
     public void onBluetoothData(final UUID characteristic, final byte[] data, final boolean clear) {
@@ -97,39 +95,28 @@ public class DebugActivity extends BleServiceConnectionActivity {
             public void run() {
                 final boolean show = (mBleService == null) ? false : !clear;
 
-                // TODO convert characteristic passed around to UUIDs always (except accross intents)
-                Log.i(TAG, "onBluetoothData: " + (characteristic != null ? characteristic : "null") + "," + GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-                if (characteristic != null && characteristic.equals(UUID.fromString(GattAttributes.CHARACTERISTIC_DEBUG_COMMAND))) {
+                UUID uuid = UUID.fromString(GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+                if (characteristic != null && characteristic.equals(uuid)) {
                     Log.i(TAG, "onBluetoothData: " + (new Byte(data[0])).toString());
                     switch (data[0]) {
-                        // TODO Need to make hardcoded command constants
-                        case 3:
+                        case BleApi.BLE_W2P_SPEEDTEST_PACKET:
                             // TODO Verify packets as they come in (incrementing uint32)
-                            if (mSpeedtestPackets % 32 == 0) {
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        // TODO Do not use hardcoded constants
-        characteristic.setValue(0, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        mBleService.writeCharacteristic(characteristic);
-                            }
                             mSpeedtestPackets++;
-                            mTvSpeedtestKbps.setText(show ? String.valueOf(mSpeedtestPackets) + "%" : "");
+                            mTvSpeedtestKbps.setText(
+                                show ? String.valueOf(mSpeedtestPackets) + "%" : ""
+                                );
                             mLen = data.length;
                             break;
-                        case 4:
+                        case BleApi.BLE_W2P_SPEEDTEST_FINAL:
                             final float time = System.currentTimeMillis() - mStartTime;
                             final float kbps = (100 * mLen * 8) / time;
                             mTvSpeedtestKbps.setText(String.format("%.1f kbps", kbps));
                             mIvSpeedtestPlay.setEnabled(true);
                             mIvSpeedtestPlay.setColorFilter(null);
                             break;
-                        case 5:
+                        case BleApi.BLE_W2P_MIC_RECORDING:
                             if (mSpeedtestPackets % 32 == 0) {
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        // TODO Do not use hardcoded constants
-        characteristic.setValue(mmm, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        mBleService.writeCharacteristic(characteristic);
+                                BleComm.Send(mBleService, mmm);
                             }
                             mSpeedtestPackets++;
                             if (mMicRecording != null) {
@@ -148,7 +135,9 @@ public class DebugActivity extends BleServiceConnectionActivity {
 
     public void onConnectionState() {
         super.onConnectionState();
-        mActionBar.setTitle(getString(R.string.debug_title) + " (" + getString(mConnectionStateRid) + ")");
+        mActionBar.setTitle(
+            getString(R.string.debug_title) + " (" + getString(mConnectionStateRid) + ")"
+            );
     }
 
     @Override
@@ -162,14 +151,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickSpeedTest(View view) {
-        if (mBleService == null) return;
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        // TODO Do not use hardcoded constants
-        characteristic.setValue(2, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        characteristic.setValue(100, BluetoothGattCharacteristic.FORMAT_UINT32, 1);
-        mBleService.writeCharacteristic(characteristic);
-
+        BleComm.Send(mBleService, BleApi.BLE_P2W_SPEEDTEST_START);
         mSpeedtestPackets = 0;
         mStartTime = System.currentTimeMillis();
         mIvSpeedtestPlay.setEnabled(false);
@@ -177,15 +159,10 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickMicRecord(View view) {
-        if (mBleService == null) return;
-        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
-                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
-        // TODO Do not use hardcoded constants
-        characteristic.setValue(3, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        mBleService.writeCharacteristic(characteristic);
+        BleComm.Send(mBleService, BleApi.BLE_P2W_MIC_RECORD_START);
 
         mSpeedtestPackets = 0;
-        mmm = 6;
+        mmm = BleApi.BLE_P2W_MIC_RECORD_CONTINUE;
         mMicRecording = new ByteArrayOutputStream();
         mIvMicRecord.setEnabled(false);
         mIvMicRecord.setColorFilter(Color.argb(150,200,200,200));
@@ -203,11 +180,27 @@ public class DebugActivity extends BleServiceConnectionActivity {
 
     public void onClickMicStop(View view) {
         if (mBleService == null) return;
-        String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/foo.wav";
         if (mMicRecording != null) {
             Log.i(TAG, "onClickMicStop()");
 
-            try (OutputStream outputStream = new FileOutputStream(name)) {
+            //
+            // WAV file header:
+            //
+            // 1) "RIFF"
+            // 2) raw file size + 36 (0x000292c0 + 0x24 = 0x000292e4)
+            // 3) "WAVE"
+            // 4) "fmt "
+            // 5) 16 (0x10) for PCM
+            // 6a) 2 bytes: AudioFormat: PCM = 1
+            // 6b) 2 bytes: Mono = 1
+            // 7) Sample rate: 16kHz = 0x3e80
+            // 8) ByteRate = SampleRate * NumChannels * BitsPerSample/8 = 32kHz = 0x7d00
+            // 9a) 2 bytes: BlockAlign = NumChannels * BitsPerSample/8 = 2
+            // 9b) 2 bytes: BitsPerSamples = 16
+            // 10) "data"
+            // 11) raw file size (0x000292c0)
+            //
+            try (OutputStream outputStream = new FileOutputStream(mMicFilename)) {
                 outputStream.write("RIFF".getBytes(StandardCharsets.UTF_8));
                 outputStream.write(DoubleWordToByteArray(mMicRecording.size() + 36));
                 outputStream.write("WAVE".getBytes(StandardCharsets.UTF_8));
@@ -229,10 +222,16 @@ public class DebugActivity extends BleServiceConnectionActivity {
         }
         mMicRecording = null;
 
-        mmm = 0;
+        mmm = BleApi.BLE_P2W_MIC_RECORD_END;
 
         mIvMicRecord.setEnabled(true);
         mIvMicRecord.setColorFilter(null);
     }
 
+    public void onClickMicPlay(View view) {
+        Uri uri = Uri.parse("file://" + mMicFilename);
+        MediaPlayer mp = MediaPlayer.create(this, uri);
+        mp.start();
+    }
+        
 }
