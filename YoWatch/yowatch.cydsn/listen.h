@@ -24,5 +24,9 @@ void ListenStop(
 uint ListenLevel(
     );
 
+int ListenGetBuf(
+    uint8 * buf
+    );
+
 #endif
 

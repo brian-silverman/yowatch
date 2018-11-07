@@ -120,11 +120,6 @@ public class BleService extends Service {
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
             Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-/*
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
-            }
-*/
         }
 
         @Override
@@ -162,10 +157,12 @@ public class BleService extends Service {
             return BleService.this;
         }
     }
+
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
     }
+
     @Override
     public boolean onUnbind(Intent intent) {
         return super.onUnbind(intent);
@@ -175,11 +172,12 @@ public class BleService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
-/*        if (isDisconnected()) {
-            connect();
-        }
-  */
-return START_STICKY;
+/*        
+            if (isDisconnected()) {
+                connect();
+            }
+*/
+        return START_STICKY;
     }
 
     @Override
@@ -191,7 +189,6 @@ return START_STICKY;
         mDeviceAddress = mSettings.getString(EXTRAS_DEVICE_ADDRESS, null);
         mDeviceName = mSettings.getString(EXTRAS_DEVICE_NAME, null);
         Log.d(TAG, "Address: " + mDeviceAddress);
-
 
         // For API level 18 and above, get a reference to BluetoothAdapter through
         // BluetoothManager.
@@ -315,11 +312,7 @@ return START_STICKY;
         final UUID UUID_CHARACTERISTIC = UUID.fromString(characteristicUuidString);
 
         BluetoothGattService service = mBluetoothGatt.getService(UUID_SERVICE);
-/*
-        for (BluetoothGattCharacteristic i: service.getCharacteristics()) {
-            Log.i(TAG, i.getUuid().toString());
-        }
-*/
+
         // TODO Get service may be null if not connected.
         return service.getCharacteristic(UUID_CHARACTERISTIC);
     }
@@ -352,13 +345,7 @@ return START_STICKY;
 
     public int getConnectionState() {
         return mConnectionState;
-/*        if (mBluetoothManager == null || mBluetoothGatt == null) {
-            return BluetoothProfile.STATE_DISCONNECTED;
-        }
-
-        return mBluetoothManager.getConnectionState(
-                mBluetoothGatt.getDevice(), BluetoothProfile.GATT);
-*/    }
+    }
 
     public boolean isConnected() {
         return getConnectionState() == BluetoothProfile.STATE_CONNECTED;

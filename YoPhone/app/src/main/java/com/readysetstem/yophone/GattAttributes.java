@@ -19,7 +19,7 @@ package com.readysetstem.yophone;
 import java.util.HashMap;
 
 public class GattAttributes {
-    private static HashMap<String, String> attributes = new HashMap();
+    private static HashMap<String, String> attributes = new HashMap<>();
     public static String SERVICE_SMARTWATCH = "C3113C46-D632-4380-9454-BFAB0F8E2871";
     public static String CHARACTERISTIC_VOICE_DATA = "93335079-B3B0-4ACD-97F7-F3A0DC528CFF";
     public static String CHARACTERISTIC_CONFIG = "CB0F1A66-24F1-4A4D-ABF6-4B789027E1C9";

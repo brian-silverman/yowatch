@@ -89,7 +89,6 @@
 //
 static int speedTestPackets;
 static uint bleTransitionFlags = 0;
-static int deviceConnected = 0;
 
 //
 // Main state machine STATEs
@@ -154,7 +153,12 @@ void OnBleRecv(
     int len
     )
 {
-    xprintf("Debug %d\r\n", *data);
+    xprintf("Debug %02X, %02X, %02X, %02X, %d\r\n", 
+        data[0], 
+        data[1], 
+        data[2], 
+        data[3], 
+        len);
     switch (*data) {
         case BLE_P2W_MIC_RECORD_END:
             bleTransitionFlags = BLE_END_TEST;
@@ -172,18 +176,6 @@ void OnBleRecv(
         default:
             break;
     }
-}
-
-//
-// BLE callback when connection changed
-// TODO handle state change (in main state machine) when device disconnects
-//
-void OnConnectionChange(
-    int connected
-    )
-{
-    xprintf("%s\r\n", connected ? "CONNECTED" : "DISCONNECTED");
-    deviceConnected = connected;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -285,6 +277,7 @@ void SmTime(
     int micWidth = GetCharWidth(MIC_CHAR, font);
     int ret;
     static int sending = 0;
+    static int toggle = 0;
 
     DrawStatusBar(call == FIRST_STATE_CALL);
 
@@ -297,10 +290,11 @@ void SmTime(
         if (Expired(4000, &since3)) {
             xprintf("Sending\r\n");
             sending = 1;
+            toggle = !toggle;
         }
         if (sending) {
             uint8 * bleBuf = BleGetBuf();
-            ret = BleSendWait(BLE_W2P_SPEEDTEST_PACKET, state, bleBuf, 496, 1);
+            ret = BleSendWait(BLE_CMD_GET_PHONE_STATUS, state, bleBuf, 496, toggle);
             if (ret == 0) {
                 xprintf("Sending done\r\n");
                 sending = 0;
@@ -354,6 +348,7 @@ void SmVoice(
     static int lastWasSent;
     static int n = 0;
     int ret;
+    int size;
 
     if (call == FIRST_STATE_CALL) {
         lastWasSent = 1;
@@ -363,11 +358,11 @@ void SmVoice(
         if (CyBle_GattGetBusyStatus() == CYBLE_STACK_STATE_FREE) {
             uint8 * bleBuf = BleGetBuf();
             if (lastWasSent) {
-                ret = DequeueBytesBlocking(bleBuf, 496);
-                if (ret == -ENODATA) return;
+                size = ListenGetBuf(bleBuf);
+                if (size == -ENODATA) return;
             }
 
-            //ret = BleSendWait(bleBuf, 500, n % 32 == 0);
+            ret = BleSendWait(BLE_W2P_SPEEDTEST_PACKET, state, bleBuf, size, n % 16 == 0);
             lastWasSent = ret == 0;
             if (lastWasSent) {
                 n++;
@@ -375,6 +370,7 @@ void SmVoice(
         }
 
     } else if (call == LAST_STATE_CALL) {
+        ListenStop();
     }
 }
 

@@ -1,11 +1,24 @@
 #
 # API constants, for BLE API between YoWatch and YoPhone
 #
+# Deprecate
 BLE_W2P_SPEEDTEST_PACKET =      3
 BLE_W2P_SPEEDTEST_FINAL =       4
 BLE_W2P_MIC_RECORDING =         5
 
+# Deprecate
 BLE_P2W_SPEEDTEST_START =       2
 BLE_P2W_MIC_RECORD_START =      3
 BLE_P2W_MIC_RECORD_CONTINUE =   6
 BLE_P2W_MIC_RECORD_END =        0
+
+BLE_CMD_GET_PHONE_STATUS =      8
+BLE_CMD_SPEECH_TO_TEXT =        9
+BLE_CMD_RUN_CMD =               10
+BLE_CMD_CMD_RESULT =            11
+BLE_CMD_GET_MSG_LIST =          12
+BLE_CMD_GET_MSG =               13
+BLE_CMD_TEST_IDENTITY =         14
+BLE_CMD_TEST_INCREMENT =        15
+BLE_CMD_TEST_REVERSE =          16
+

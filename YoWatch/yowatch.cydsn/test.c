@@ -25,6 +25,8 @@
 #include "draw.h"
 #include "status.h"
 #include "tick.h"
+#include "BLEApplications.h"
+#include "bleapi.h"
 
 // Enable to run TestSuite();
 #define DO_TEST_SUITE
@@ -1386,30 +1388,64 @@ void TestDrawTextOobOffScreen()
     CyDelay(MTEST_DELAY_FAST);
 }
 
+void WaitForBleConnected()
+{
+    int n = 1;
+    xprintf("Waiting for BLE connection...\r\n");
+    while (!BleIsConnected()) {
+        CyBle_ProcessEvents();
+        if (n % (30 * 1)  == 0) xprintf(".");
+        if (n % (30 * 60) == 0) xprintf("\r\n%d", n/30);
+        n++;
+        CyDelay(10);
+    }
+}
+
+int TestBleSendAndResponse(
+    int cmd,
+    int size
+    )
+{
+    TEST_INIT;
+
+    TickInit();
+    WaitForBleConnected();
+    CyDelay(5000);
+
+    uint8 * bleBuf = BleGetBuf();
+    int ret = -1;
+    for (int i = 0; i < size; i++) {
+        bleBuf[i] = i;
+    }
+    int start = GetTick();
+    while ((ret != 0) && (GetTick() - start < 5000)) {
+        CyBle_ProcessEvents();
+        ret = BleSendWait(cmd, 0, bleBuf, size, 1);
+    }
+    TEST_ASSERT_INT_EQ(ret, 0);
+    uint8 * responseBuf;
+    int responseSize;
+    BleRecvPayload(NULL, &responseBuf, &responseSize);
+    TEST_ASSERT_INT_EQ(responseSize, size);
+    for (int i = 0; i < size; i++) {
+        uint8 b = 0;
+        switch (cmd) {
+            case BLE_CMD_TEST_IDENTITY:     b = bleBuf[i];          break;
+            case BLE_CMD_TEST_INCREMENT:    b = bleBuf[i] + 1;      break;
+            case BLE_CMD_TEST_REVERSE:      b = bleBuf[size - i];   break;
+        }
+        TEST_ASSERT_PRINT(b == responseBuf[i], 
+            "TEST %d/%d: i (%d), b (%d), r (%d)\r\n", cmd, size, i, b, responseBuf[i]);
+    }
+
+    TEST_RETURN;
+}
+
 /////////////////////////////////////////////////////////////////////
 //
 // Test Suite
 //
 /////////////////////////////////////////////////////////////////////
-
-void test()
-{
-    char * lines[] = {
-        "AAAAAAAAAAAAAAAAAAAAAAA",
-        "BBBBBBBBBBBBBBBBBBBBBBB",
-        "CCCCCCCCCCCCCCCCCCCCCCC",
-        "DDDDDDDDDDDDDDDDDDDDDDD",
-        "EEEEEEEEEEEEEEEEEEEEEEE",
-        "FFFFFFFFFFFFFFFFFFFFFFF",
-        "GGGGGGGGGGGGGGGGGGGGGGG",
-        "HHHHHHHHHHHHHHHHHHHHHHH",
-        "IIIIIIIIIIIIIIIIIIIIIII",
-        "JJJJJJJJJJJJJJJJJJJJJJJ",
-        "KKKKKKKKKKKKKKKKKKKKKKK",
-    };
-
-    DrawTextBox(lines, ARRAY_SIZEOF(lines), SCREEN_BOUNDS, 0, 0, FONT_5X8, WHITE, BLACK);
-}
 
 void TestSuite()
 {
@@ -1474,6 +1510,15 @@ void TestSuite()
     MTEST(TestColors());
     MTEST(TestTextBox());
     MTEST(TestVerticalJustifiedTextBox());
+#endif
+#if 0
+    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 0));
+    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 10));
+#endif
+#if 0
+    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 100));
+    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 500));
+    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 504));
 #endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);

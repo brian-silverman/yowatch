@@ -19,6 +19,7 @@
 #include "util.h"
 #include "queue.h"
 #include "i2s.h"
+#include "BLEApplications.h"
 
 static uint8 * circQ[LISTEN_QUEUE_NUM_BUFS];
 static uint varianceQ[LISTEN_QUEUE_NUM_BUFS];
@@ -32,7 +33,7 @@ int ListenActivity(
     int ret = 0;
 
     //
-    // Dequeue all bufs from SRAM until empty.  If listen queue is full, sill
+    // Dequeue all bufs from SRAM until empty.  If listen queue is full, still
     // keep adding (head is lost).  This keeps listen queue always full with
     // latest audio bufs.
     //
@@ -100,4 +101,22 @@ void ListenStop(
     )
 {
     I2sStopDma();
+}
+
+int ListenGetBuf(
+    uint8 * buf
+    )
+{
+    //
+    // Pull bufs from listen queue if available, else from SRAM queue.
+    //
+    if (len > 0) {
+        memcpy(buf, circQ[head], SERIAL_RAM_BUFSIZE);
+        head = (head + 1) % LISTEN_QUEUE_NUM_BUFS;
+        len--;
+        return SERIAL_RAM_BUFSIZE;
+    } else {
+        int ret = DequeueBytesBlocking(buf, BLE_MAX_PAYLOAD);
+        return ret == 0 ? BLE_MAX_PAYLOAD : ret;
+    }
 }

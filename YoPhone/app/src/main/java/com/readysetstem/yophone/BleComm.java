@@ -47,6 +47,14 @@ import java.nio.charset.StandardCharsets;
 public class BleComm {
     private final static String TAG = BleComm.class.getSimpleName();
 
+    public static void Send(BleService bleService, byte[] data) {
+        if (bleService == null) return;
+        BluetoothGattCharacteristic characteristic = bleService.getCharacteristic(
+                GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
+        characteristic.setValue(data);
+        bleService.writeCharacteristic(characteristic);
+    }
+
     public static void Send(BleService bleService, int v) {
         if (bleService == null) return;
         BluetoothGattCharacteristic characteristic = bleService.getCharacteristic(
@@ -56,10 +64,32 @@ public class BleComm {
     }
 
     public static void Recv(BleService bleService, BluetoothGattCharacteristic characteristic) {
-        final byte[] data = characteristic.getValue();
+        byte[] data = characteristic.getValue();
         Log.d(TAG, "Recv: " + data.length);
-        Send(bleService, 7);
-
+        byte[] slice = Arrays.copyOfRange(data, 0, 8);
+        int cmd = data[0] >> 3;
+        switch (cmd) {
+            case BleApi.BLE_CMD_TEST_IDENTITY:
+                break;
+            case BleApi.BLE_CMD_TEST_INCREMENT:
+                for (int i = 4; i < data.length; i++) {
+                    data[i] += 1;
+                }
+            case BleApi.BLE_CMD_TEST_REVERSE:
+                for (int i = 4; i < data.length; i++) {
+                    data[i] = data[data.length - i + 4];
+                }
+            default:
+                for (int i = 4; i < data.length; i++) {
+                    data[i] = 0;
+                }
+                data[4] = 6;
+                data[5] = 44;
+                data[6] = 11;
+                data[7] = 22;
+                break;
+        }
+        Send(bleService, data);
     }
 }
 

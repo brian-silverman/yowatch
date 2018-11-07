@@ -11,10 +11,22 @@
 #define MTU_XCHANGE_DATA_LEN			(0x0020)
 #define MAX_MTU_SIZE                    (512)
 #define DEFAULT_MTU_SIZE                (CYBLE_GATT_MTU)
+#define BLE_MAX_PAYLOAD                 (500)
+#if BLE_MAX_PAYLOAD > 500
+    // BLE_MAX_PAYLOAD must not be greater than MAX_MTU_SIZE minus the
+    // BLE_HEADER size.  However, in testing, I /may/ have found that sizes
+    // exactly at the MTU size failed.  Therefore the current max size add a
+    // little extra margin.
+    #error BLE_MAX_PAYLOAD too large
+#endif
 
-void OnConnectionChange(
-    int connected
-);
+struct BLE_HEADER {
+    uint16 cmd:5;
+    uint16 state:5;
+    uint16 requiresResponse:1;
+    uint16 reserved:5;
+    uint16 index;
+};
 
 void BleStart(
     );
@@ -33,6 +45,15 @@ int BleSendWait(
     );
 
 uint8 * BleGetBuf(
+    );
+
+int BleIsConnected(
+    );
+
+void BleRecvPayload(
+    struct BLE_HEADER ** header,
+    uint8 ** payload,
+    int * len
     );
 
 #endif

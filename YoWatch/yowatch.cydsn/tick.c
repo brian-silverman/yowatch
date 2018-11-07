@@ -62,7 +62,19 @@ int Expired(
     int elapsed = now - *since;
     assert_printf(elapsed > 0, "%d, %d, %d\r\n", elapsed, now, *since);
     if (elapsed > msec) {
-        *since = now - (elapsed - msec);
+        //
+        // If we've missed a whole period since last test, then just jump right
+        // to now.  (This is uncommon, occurs if period is too short, or if
+        // there's a long wait on startup from testing).
+        //
+        // Otherwise, we adjust the "since" time to be more exact (now minus
+        // any extra time) to reduce drift.
+        //
+        if (elapsed > 2 * msec) {
+            *since = now;
+        } else {
+            *since = now - (elapsed - msec);
+        }
         return 1;
     }
     return 0;
