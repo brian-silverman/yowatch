@@ -11,13 +11,13 @@
 
 int deviceConnected = 0;
 
-uint16 bleCmdIndex[BLE_API_MAX_CMD_NUM];
-struct BLE_HEADER currentSendHdr;
-struct BLE_HEADER * pCurrentSendHdr;
-struct BLE_HEADER currentResponseHdr;
-struct BLE_HEADER * pCurrentResponseHdr;
-static uint8 * pCurrentResponsePayload;
-static int currentResponsePayloadLen;
+static uint16 bleCmdIndex[BLE_API_MAX_CMD_NUM];
+static struct {
+    struct BLE_HEADER header;
+    struct BLE_HEADER * pHeader;
+    uint8 * pPayload;
+    int payloadLen;
+} currentResponse;
 static uint8 bleBuf[MAX_MTU_SIZE];
 
 uint16 negotiatedMtu = DEFAULT_MTU_SIZE;
@@ -200,11 +200,12 @@ static __inline__ CYBLE_API_RESULT_T _OnBleRecv(
     )
 {
     assert(len > sizeof(struct BLE_HEADER));
-    currentResponseHdr = *((struct BLE_HEADER *) data);
-    pCurrentResponseHdr = &currentResponseHdr;
-    pCurrentResponsePayload = data + sizeof(struct BLE_HEADER);
-    currentResponsePayloadLen = len;
-    OnBleRecv(pCurrentResponsePayload, currentResponsePayloadLen);
+    currentResponse.header = *((struct BLE_HEADER *) data);
+    currentResponse.pHeader = &currentResponse.header;
+    currentResponse.pPayload = data + sizeof(struct BLE_HEADER);
+    currentResponse.payloadLen = len - sizeof(struct BLE_HEADER);
+    xprintf("currentResponse.payloadLen: %d\r\n", currentResponse.payloadLen);
+    OnBleRecv(currentResponse.pPayload, currentResponse.payloadLen);
     return 0;
 }
 
@@ -214,9 +215,9 @@ void BleRecvPayload(
     int * len
     )
 {
-    if (header) *header = pCurrentResponseHdr;
-    if (payload) *payload = pCurrentResponsePayload;
-    if (len) *len = currentResponsePayloadLen;
+    if (header) *header = currentResponse.pHeader;
+    if (payload) *payload = currentResponse.pPayload;
+    if (len) *len = currentResponse.payloadLen;
 }
 
 //
@@ -229,7 +230,7 @@ void BleRecvPayload(
 // @param waitForResponse   
 //              If true, wait for response (see below)
 //
-// @return 0 on success, else error.  
+// @return 0 on success, else must be retried until completion.
 //
 // Intended to be called from main SM.  Call must be retried until return value
 // is 0 (success), but only retried once per SM loop, so that the
@@ -251,47 +252,76 @@ int BleSendWait(
     )
 {
     int ret = -EAGAIN;
+    static enum {
+        IDLE,
+        SENDING,
+        WAITING_FOR_RESPONSE
+    } localState = IDLE;
+    static struct {
+        int cmd;
+        int state;
+        uint8 * buf;
+        int len;
+        int waitForResponse;
+        struct BLE_HEADER * pHeader;
+    } args;
 
-    if (pCurrentSendHdr) {
-        // TODO: timeout after ~1 second?
-        if (pCurrentResponseHdr && 
-            memcmp(pCurrentResponseHdr, pCurrentSendHdr, sizeof(*pCurrentSendHdr)) == 0) 
-        {
-            pCurrentSendHdr = NULL;
-            ret = 0;
-        }
-    } else {
-        struct BLE_HEADER * header = (struct BLE_HEADER *) (buf - sizeof(struct BLE_HEADER));
-        memset(header, 0, sizeof(struct BLE_HEADER));
-        header->cmd = cmd;
-        header->state = state;
-        header->requiresResponse = waitForResponse;
-        assert(cmd > 0 && cmd <= BLE_API_MAX_CMD_NUM);
-        header->index = bleCmdIndex[cmd];
-#if 0
-        xprintf("%d, %d, %d\r\n", cmd, state, waitForResponse);
-        xprintf("HEADER: %02X, %02X, %02X, %02X\r\n",
-            ((uint8 *) header)[0],
-            ((uint8 *) header)[1],
-            ((uint8 *) header)[2],
-            ((uint8 *) header)[3]
-            );
-#endif
-
-        ret =  BleSendNotification(
-            CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE,
-            (uint8 *) header,
-            sizeof(struct BLE_HEADER) + len
-            );
-        if (ret == 0 && waitForResponse) {
-            currentSendHdr = *header;
-            pCurrentSendHdr = &currentResponseHdr;
+    switch (localState) {
+        case IDLE:
+            currentResponse.pHeader = NULL;
+            currentResponse.pPayload = NULL;
+            currentResponse.payloadLen = 0;
+            args.cmd = cmd;
+            args.state = state;
+            args.buf = buf;
+            args.len = len;
+            args.waitForResponse = waitForResponse;
+            args.pHeader = (struct BLE_HEADER *) (buf - sizeof(struct BLE_HEADER));
+            memset(args.pHeader, 0, sizeof(struct BLE_HEADER));
+            args.pHeader->cmd = cmd;
+            args.pHeader->state = state;
+            args.pHeader->requiresResponse = waitForResponse;
+            assert(cmd > 0 && cmd <= BLE_API_MAX_CMD_NUM);
+            args.pHeader->index = bleCmdIndex[cmd];
             bleCmdIndex[cmd]++;
-            ret = -EAGAIN;
-        }
+            localState = SENDING;
+            break;
+
+        case SENDING:
+            assert(args.cmd == cmd);
+            assert(args.state == state);
+            assert(args.buf == buf);
+            assert(args.len == len);
+            assert(args.waitForResponse == waitForResponse);
+            ret =  BleSendNotification(
+                CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE,
+                (uint8 *) args.pHeader,
+                sizeof(struct BLE_HEADER) + args.len
+                );
+            if (ret == 0) {
+                localState = args.waitForResponse ? WAITING_FOR_RESPONSE : IDLE;
+            }
+            break;
+
+        case WAITING_FOR_RESPONSE:
+            assert(args.cmd == cmd);
+            assert(args.state == state);
+            assert(args.buf == buf);
+            assert(args.len == len);
+            assert(args.waitForResponse == waitForResponse);
+            // TODO: timeout after ~1 second?
+            if (currentResponse.pHeader) {
+                assert(memcmp(currentResponse.pHeader, args.pHeader, sizeof(*args.pHeader)) == 0);
+                localState = IDLE;
+            }
+            break;
+
+        default:
+            assert(0);
+            break;
     }
 
-    return ret;
+    return localState != IDLE;
 }
 
 //

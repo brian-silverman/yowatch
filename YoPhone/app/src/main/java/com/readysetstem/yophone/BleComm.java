@@ -67,7 +67,9 @@ public class BleComm {
         byte[] data = characteristic.getValue();
         Log.d(TAG, "Recv: " + data.length);
         byte[] slice = Arrays.copyOfRange(data, 0, 8);
-        int cmd = data[0] >> 3;
+        int highword = (data[1] << 8) + data[0];
+        int cmd = highword & 0x1F;
+        Log.d(TAG, "Recv: cmd: " + cmd);
         switch (cmd) {
             case BleApi.BLE_CMD_TEST_IDENTITY:
                 break;
@@ -83,10 +85,6 @@ public class BleComm {
                 for (int i = 4; i < data.length; i++) {
                     data[i] = 0;
                 }
-                data[4] = 6;
-                data[5] = 44;
-                data[6] = 11;
-                data[7] = 22;
                 break;
         }
         Send(bleService, data);

@@ -94,7 +94,7 @@ static uint bleTransitionFlags = 0;
 // Main state machine STATEs
 //
 enum STATE {
-    NONE,
+    NONE = 0,
     OFF,
     SLEEP,
     TIME,
@@ -277,7 +277,7 @@ void SmTime(
     int micWidth = GetCharWidth(MIC_CHAR, font);
     int ret;
     static int sending = 0;
-    static int toggle = 0;
+    static int withResponse = 0;
 
     DrawStatusBar(call == FIRST_STATE_CALL);
 
@@ -288,16 +288,31 @@ void SmTime(
     } else if (call == MIDDLE_STATE_CALL) {
         // FIXME: currently doind seconds calc - switch to minutes
         if (Expired(4000, &since3)) {
-            xprintf("Sending\r\n");
+            withResponse = !withResponse;
+            xprintf("Sending%s\r\n", withResponse ? ", with response" : "");
             sending = 1;
-            toggle = !toggle;
         }
         if (sending) {
             uint8 * bleBuf = BleGetBuf();
-            ret = BleSendWait(BLE_CMD_GET_PHONE_STATUS, state, bleBuf, 496, toggle);
+            ret = BleSendWait(BLE_CMD_GET_PHONE_STATUS, state, bleBuf, 496, withResponse);
             if (ret == 0) {
-                xprintf("Sending done\r\n");
+                uint8 * responseBuf;
+                int responseSize;
+                BleRecvPayload(NULL, &responseBuf, &responseSize);
                 sending = 0;
+                if (withResponse) {
+                    assert(responseBuf != NULL);
+                    xprintf("Sending done, %02X, %02X %02X %02X, %d\r\n",
+                        responseBuf[0],
+                        responseBuf[1],
+                        responseBuf[2],
+                        responseBuf[3],
+                        responseSize
+                        );
+                } else {
+                    xprintf("Sending done\r\n");
+                }
+
             }
         }
         if (Expired(1000, &since1)) {

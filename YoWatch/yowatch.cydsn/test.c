@@ -58,16 +58,25 @@ int fail = 0;
     int testAssertFails = 0
 
 #define TEST_ASSERT(assert) \
-    testAssertFails += _TestAssert(assert, #assert, TEST_VERBOSE, __FILE__, __LINE__)
+    TEST_ASSERT_PRINT(assert, NULL)
 
 #define TEST_ASSERT_INT_EQ(val1, val2) \
-    testAssertFails += _TestAssertIntEq(val1, val2, #val1, #val2, TEST_VERBOSE, __FILE__, __LINE__)
+    TEST_ASSERT_PRINT(val1 == val2, "%d ?= %d", (int) val1, (int) val2)
 
-#define TEST_ASSERT_PRINT(assert, args...) \
+#define TEST_ASSERT_PRINT(assert, fmt, args...) \
     { \
-        int fail = _TestAssert(assert, #assert, TEST_VERBOSE, __FILE__, __LINE__); \
-        testAssertFails += fail; \
-        if (fail) xprintf("\t" args); \
+        int _assert = (assert); \
+        testAssertFails += !_assert; \
+        if (_TestAssert(_assert, #assert, TEST_VERBOSE, __FILE__, __LINE__)) { \
+            /* Use var to obscure possible use of NULL fmt.  Otherwise, if fmt */ \
+            /* is NULL, xprintf() complains because of compiler's -Wnonnull flag */ \
+            char * _fmt = fmt; \
+            if (_fmt) { \
+                xprintf(" # "); \
+                xprintf(_fmt, ## args); \
+            } \
+            xprintf("\r\n"); \
+        } \
     }
 
 #define TEST_RETURN \
@@ -88,28 +97,31 @@ int _TestAssert(
     int line
     )
 {
-    if (!assertion || verbose) {
-        xprintf("\t%s(%s) @ %s, %d\r\n", assertion ? "PASS" : "FAIL", assertStr, file, line);
-    }
-    return !assertion;
-}
+    static int lastLine = -1;
+    static char lastFile[128];
+    static int repeats = 0;
+    int printed = 0;
 
-int _TestAssertIntEq(
-    int val1,
-    int val2,
-    char * val1Str,
-    char * val2Str,
-    int verbose,
-    char * file,
-    int line
-    )
-{
-    int assertion = val1 == val2;
     if (!assertion || verbose) {
-        xprintf("\t%s(%s == %s), (%d == %d) @ %s, %d\r\n",
-            assertion ? "PASS" : "FAIL", val1Str, val2Str, val1, val2, file, line);
+        if ((line == lastLine) && (strcmp(file, lastFile) == 0)) {
+            repeats++;
+        } else {
+            repeats = 0;
+        }
+
+        if (repeats == 0 || verbose) {
+            xprintf("    %s(%s) @ %s, %d", assertion ? "PASS" : "FAIL", assertStr, file, line);
+            printed = 1;
+        } else if (repeats == 1) {
+            xprintf("        REPEATED FAIL(S). SKIPPING...");
+            printed = 1;
+        }
     }
-    return !assertion;
+
+    lastLine = line;
+    strcpy(lastFile, file);
+
+    return printed;
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -1401,7 +1413,7 @@ void WaitForBleConnected()
     }
 }
 
-int TestBleSendAndResponse(
+int TestBleSendWithResponse(
     int cmd,
     int size
     )
@@ -1410,12 +1422,11 @@ int TestBleSendAndResponse(
 
     TickInit();
     WaitForBleConnected();
-    CyDelay(5000);
 
     uint8 * bleBuf = BleGetBuf();
     int ret = -1;
     for (int i = 0; i < size; i++) {
-        bleBuf[i] = i;
+        bleBuf[i] = i + size;
     }
     int start = GetTick();
     while ((ret != 0) && (GetTick() - start < 5000)) {
@@ -1423,10 +1434,20 @@ int TestBleSendAndResponse(
         ret = BleSendWait(cmd, 0, bleBuf, size, 1);
     }
     TEST_ASSERT_INT_EQ(ret, 0);
+    struct BLE_HEADER * header;
     uint8 * responseBuf;
     int responseSize;
-    BleRecvPayload(NULL, &responseBuf, &responseSize);
+    BleRecvPayload(&header, &responseBuf, &responseSize);
+    TEST_ASSERT_INT_EQ(header->cmd, cmd);
+    TEST_ASSERT_INT_EQ(header->state, 0);
+    TEST_ASSERT_INT_EQ(header->requiresResponse, 1);
     TEST_ASSERT_INT_EQ(responseSize, size);
+    xprintf("%02X, %02X, %02X, %02X\r\n",
+        ((uint8 *) header)[0],
+        ((uint8 *) header)[1],
+        ((uint8 *) header)[2],
+        ((uint8 *) header)[3]
+        );
     for (int i = 0; i < size; i++) {
         uint8 b = 0;
         switch (cmd) {
@@ -1435,7 +1456,7 @@ int TestBleSendAndResponse(
             case BLE_CMD_TEST_REVERSE:      b = bleBuf[size - i];   break;
         }
         TEST_ASSERT_PRINT(b == responseBuf[i], 
-            "TEST %d/%d: i (%d), b (%d), r (%d)\r\n", cmd, size, i, b, responseBuf[i]);
+            "%d/%d: i (%d), b (%d), r (%d)", cmd, size, i, b, responseBuf[i]);
     }
 
     TEST_RETURN;
@@ -1511,14 +1532,29 @@ void TestSuite()
     MTEST(TestTextBox());
     MTEST(TestVerticalJustifiedTextBox());
 #endif
+#if 1
+    // First test if size is 10 (or less? or just small?) test fails to see response.  Need to
+    // test for this.
+    //
+    //TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 0));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 480));
 #if 0
-    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 0));
-    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 10));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 400));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 200));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 98));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 97));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 96));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 40));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 10));
+#endif
+    assert(0);
 #endif
 #if 0
-    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 100));
-    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 500));
-    TEST(TestBleSendAndResponse(BLE_CMD_TEST_IDENTITY, 504));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 500));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 504));
 #endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);
