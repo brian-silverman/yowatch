@@ -1403,7 +1403,9 @@ void TestDrawTextOobOffScreen()
 void WaitForBleConnected()
 {
     int n = 1;
-    xprintf("Waiting for BLE connection...\r\n");
+    if (!BleIsConnected()) {
+        xprintf("Waiting for BLE connection...\r\n\r\n");
+    }
     while (!BleIsConnected()) {
         CyBle_ProcessEvents();
         if (n % (30 * 1)  == 0) xprintf(".");
@@ -1442,18 +1444,12 @@ int TestBleSendWithResponse(
     TEST_ASSERT_INT_EQ(header->state, 0);
     TEST_ASSERT_INT_EQ(header->requiresResponse, 1);
     TEST_ASSERT_INT_EQ(responseSize, size);
-    xprintf("%02X, %02X, %02X, %02X\r\n",
-        ((uint8 *) header)[0],
-        ((uint8 *) header)[1],
-        ((uint8 *) header)[2],
-        ((uint8 *) header)[3]
-        );
     for (int i = 0; i < size; i++) {
         uint8 b = 0;
         switch (cmd) {
             case BLE_CMD_TEST_IDENTITY:     b = bleBuf[i];          break;
             case BLE_CMD_TEST_INCREMENT:    b = bleBuf[i] + 1;      break;
-            case BLE_CMD_TEST_REVERSE:      b = bleBuf[size - i];   break;
+            case BLE_CMD_TEST_REVERSE:      b = bleBuf[size - i - 1];   break;
         }
         TEST_ASSERT_PRINT(b == responseBuf[i], 
             "%d/%d: i (%d), b (%d), r (%d)", cmd, size, i, b, responseBuf[i]);
@@ -1533,28 +1529,55 @@ void TestSuite()
     MTEST(TestVerticalJustifiedTextBox());
 #endif
 #if 1
-    // First test if size is 10 (or less? or just small?) test fails to see response.  Need to
-    // test for this.
-    //
-    //TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 0));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 480));
-#if 0
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 400));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 0));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 1));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 2));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 3));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 4));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 5));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 6));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 7));
+
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 101));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 102));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 103));
+
     TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 200));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 98));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 97));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 96));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 40));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 10));
-#endif
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 210));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 220));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 230));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 240));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 250));
+
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 400));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 410));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 420));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 430));
+
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, BLE_MAX_PAYLOAD - 4));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, BLE_MAX_PAYLOAD - 3));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, BLE_MAX_PAYLOAD - 2));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, BLE_MAX_PAYLOAD - 1));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, BLE_MAX_PAYLOAD - 0));
+
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 1));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 2));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 3));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 4));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, 200));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_INCREMENT, BLE_MAX_PAYLOAD));
+
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 1));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 2));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 3));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 4));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 100));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, 200));
+    TEST(TestBleSendWithResponse(BLE_CMD_TEST_REVERSE, BLE_MAX_PAYLOAD));
+
     assert(0);
-#endif
-#if 0
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 100));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 500));
-    TEST(TestBleSendWithResponse(BLE_CMD_TEST_IDENTITY, 504));
 #endif
 
     xprintf("==== TEST SUITE DONE @ %s, %s ====\r\n", __DATE__, __TIME__);

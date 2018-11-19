@@ -17,6 +17,7 @@ import java.util.UUID;
 public class BleServiceConnectionActivity extends AppCompatActivity {
     private final static String TAG = BleServiceConnectionActivity.class.getSimpleName();
     public BleService mBleService;
+    public BleComm mBleComm;
     public int mConnectionStateRid = R.string.connection_state_disconnected;
 
     // Code to manage Service lifecycle.
@@ -24,6 +25,7 @@ public class BleServiceConnectionActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName componentName, IBinder service) {
             mBleService = ((BleService.LocalBinder) service).getService();
+            mBleComm = BleComm.getInstance();
             onConnectionState();
             onBleServiceConnected();
         }

@@ -153,12 +153,7 @@ void OnBleRecv(
     int len
     )
 {
-    xprintf("Debug %02X, %02X, %02X, %02X, %d\r\n", 
-        data[0], 
-        data[1], 
-        data[2], 
-        data[3], 
-        len);
+#if 0
     switch (*data) {
         case BLE_P2W_MIC_RECORD_END:
             bleTransitionFlags = BLE_END_TEST;
@@ -176,6 +171,7 @@ void OnBleRecv(
         default:
             break;
     }
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////

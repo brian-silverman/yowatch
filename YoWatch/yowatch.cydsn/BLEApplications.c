@@ -8,6 +8,7 @@
 #include <errno.h>
 #include "assert.h"
 #include "bleapi.h"
+#include "tick.h"
 
 int deviceConnected = 0;
 
@@ -105,7 +106,7 @@ static void OnConnectionChange(
     int connected
     )
 {
-    xprintf("%s\r\n", connected ? "CONNECTED" : "DISCONNECTED");
+    //xprintf("%s\r\n", connected ? "CONNECTED" : "DISCONNECTED");
     deviceConnected = connected;
 }
 
@@ -199,12 +200,12 @@ static __inline__ CYBLE_API_RESULT_T _OnBleRecv(
     int len
     )
 {
-    assert(len > sizeof(struct BLE_HEADER));
+    assert(len >= sizeof(struct BLE_HEADER));
     currentResponse.header = *((struct BLE_HEADER *) data);
     currentResponse.pHeader = &currentResponse.header;
     currentResponse.pPayload = data + sizeof(struct BLE_HEADER);
-    currentResponse.payloadLen = len - sizeof(struct BLE_HEADER);
-    xprintf("currentResponse.payloadLen: %d\r\n", currentResponse.payloadLen);
+    assert(len == BLE_MAX_PAYLOAD + sizeof(struct BLE_HEADER));
+    currentResponse.payloadLen = currentResponse.header.payloadLen;
     OnBleRecv(currentResponse.pPayload, currentResponse.payloadLen);
     return 0;
 }
@@ -243,6 +244,15 @@ void BleRecvPayload(
 // must be retried AFTER the next call to CyBle_ProcessEvents(), or it will
 // still fail.
 //
+// NOTE: Small packets have frequent timeout errors.  In long term testing,
+// packets with /len/ less than or equal to 16 bytes failed to send around 6%
+// of the time.  If 16 < len < ~40, packets failed around 0.1% of the time.
+// Larger packets rarely failed (only one out of ~500k packets of size 40 to
+// 500 failed).  The rountrip time to send packets does not (or barely)
+// increases by packet size.  Therefore, we always send packets of the length
+// BLE_MAX_PAYLOAD, and encode read length in the header.  When timeout errors
+// do occur, we resend the packet.
+//
 int BleSendWait(
     int cmd,
     int state,
@@ -265,17 +275,29 @@ int BleSendWait(
         int waitForResponse;
         struct BLE_HEADER * pHeader;
     } args;
+    static int start = 0;
+    static int numResends = 0;
+
+    if (localState != IDLE) {
+        assert(args.cmd == cmd);
+        assert(args.state == state);
+        assert(args.buf == buf);
+        assert(args.len == len);
+        assert(args.waitForResponse == waitForResponse);
+    }
 
     switch (localState) {
         case IDLE:
             currentResponse.pHeader = NULL;
             currentResponse.pPayload = NULL;
             currentResponse.payloadLen = 0;
+
             args.cmd = cmd;
             args.state = state;
             args.buf = buf;
             args.len = len;
             args.waitForResponse = waitForResponse;
+
             args.pHeader = (struct BLE_HEADER *) (buf - sizeof(struct BLE_HEADER));
             memset(args.pHeader, 0, sizeof(struct BLE_HEADER));
             args.pHeader->cmd = cmd;
@@ -284,33 +306,30 @@ int BleSendWait(
             assert(cmd > 0 && cmd <= BLE_API_MAX_CMD_NUM);
             args.pHeader->index = bleCmdIndex[cmd];
             bleCmdIndex[cmd]++;
+            args.pHeader->payloadLen = len;
+
+            numResends = 0;
             localState = SENDING;
             break;
 
         case SENDING:
-            assert(args.cmd == cmd);
-            assert(args.state == state);
-            assert(args.buf == buf);
-            assert(args.len == len);
-            assert(args.waitForResponse == waitForResponse);
-            ret =  BleSendNotification(
+            ret = BleSendNotification(
                 CYBLE_SMARTWATCH_SERVICE_DEBUG_COMMAND_CHAR_HANDLE,
                 (uint8 *) args.pHeader,
-                sizeof(struct BLE_HEADER) + args.len
+                sizeof(struct BLE_HEADER) + BLE_MAX_PAYLOAD
                 );
             if (ret == 0) {
+                start = GetTick();
                 localState = args.waitForResponse ? WAITING_FOR_RESPONSE : IDLE;
             }
             break;
 
         case WAITING_FOR_RESPONSE:
-            assert(args.cmd == cmd);
-            assert(args.state == state);
-            assert(args.buf == buf);
-            assert(args.len == len);
-            assert(args.waitForResponse == waitForResponse);
-            // TODO: timeout after ~1 second?
-            if (currentResponse.pHeader) {
+            if (GetTick() - start > 2000) {
+                numResends++;
+                assert(numResends <= 2);
+                localState = SENDING;
+            } else if (currentResponse.pHeader) {
                 assert(memcmp(currentResponse.pHeader, args.pHeader, sizeof(*args.pHeader)) == 0);
                 localState = IDLE;
             }

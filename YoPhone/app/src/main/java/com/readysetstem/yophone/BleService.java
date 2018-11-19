@@ -31,6 +31,7 @@ import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
+import android.os.SystemClock;
 
 import java.util.List;
 import java.util.UUID;
@@ -50,12 +51,15 @@ public class BleService extends Service {
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
+    private BleComm mBleComm;
 
     private String mDeviceName;
     private String mDeviceAddress;
     private int mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 
     private SharedPreferences mSettings;
+
+    private boolean writeBusy = false;
 
     private int mRxPackets = 0;
 
@@ -120,6 +124,9 @@ public class BleService extends Service {
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
             Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
+            byte[] data = characteristic.getValue();
+            Log.d(TAG, "onCharacteristicWrite: " + data.length);
+            writeBusy = false;
         }
 
         @Override
@@ -127,7 +134,7 @@ public class BleService extends Service {
                                             BluetoothGattCharacteristic characteristic) {
             Log.d(TAG, "Entering: " + Thread.currentThread().getStackTrace()[2].getMethodName() + "()");
 
-            BleComm.Recv(mThisBleService, characteristic);
+            mBleComm.Recv(characteristic);
             broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
             mRxPackets++;
         }
@@ -205,6 +212,9 @@ public class BleService extends Service {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
             return;
         }
+
+        mBleComm = BleComm.getInstance();
+        mBleComm.setService(this);
     }
 
     @Override
@@ -296,6 +306,18 @@ public class BleService extends Service {
             Log.w(TAG, "BluetoothAdapter not initialized");
             return;
         }
+        //
+        // Writes are only allowed serialized.  In general, write responses
+        // do not overlap, so this polled loop should normally not occur.  
+        //
+        int i = 0;
+        while (writeBusy) {
+            final int MS = 10;
+            SystemClock.sleep(MS);
+            if (i > 500) break;
+            i += MS;
+        }
+        writeBusy = true;
         mBluetoothGatt.writeCharacteristic(characteristic);
     }
 

@@ -46,48 +46,77 @@ import java.nio.charset.StandardCharsets;
  */
 public class BleComm {
     private final static String TAG = BleComm.class.getSimpleName();
+    private static final BleComm INSTANCE = new BleComm();
 
-    public static void Send(BleService bleService, byte[] data) {
-        if (bleService == null) return;
-        BluetoothGattCharacteristic characteristic = bleService.getCharacteristic(
+    private BleService mBleService;
+
+    private BleComm() {}
+
+    private int byteToInt(byte b) {
+        return b < 0 ? 256 + b : b;
+    }
+
+    private int bytesToWord(byte high, byte low) {
+        return (byteToInt(high) << 8) + byteToInt(low);
+    }
+
+    public void setService(BleService bleService) {
+        mBleService = bleService;
+    }
+
+    public static BleComm getInstance() {
+        return INSTANCE;
+    }
+
+    public void Send(byte[] data) {
+        if (mBleService == null) return;
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         characteristic.setValue(data);
-        bleService.writeCharacteristic(characteristic);
+        mBleService.writeCharacteristic(characteristic);
     }
 
-    public static void Send(BleService bleService, int v) {
-        if (bleService == null) return;
-        BluetoothGattCharacteristic characteristic = bleService.getCharacteristic(
+    public void Send(int v) {
+        if (mBleService == null) return;
+        BluetoothGattCharacteristic characteristic = mBleService.getCharacteristic(
                 GattAttributes.SERVICE_SMARTWATCH, GattAttributes.CHARACTERISTIC_DEBUG_COMMAND);
         characteristic.setValue(v, BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-        bleService.writeCharacteristic(characteristic);
+        mBleService.writeCharacteristic(characteristic);
     }
 
-    public static void Recv(BleService bleService, BluetoothGattCharacteristic characteristic) {
+    public void Recv(BluetoothGattCharacteristic characteristic) {
+        // TODO: header length is currently hardcoded
         byte[] data = characteristic.getValue();
-        Log.d(TAG, "Recv: " + data.length);
-        byte[] slice = Arrays.copyOfRange(data, 0, 8);
-        int highword = (data[1] << 8) + data[0];
-        int cmd = highword & 0x1F;
-        Log.d(TAG, "Recv: cmd: " + cmd);
+        int word1 = bytesToWord(data[1], data[0]);
+        int index = bytesToWord(data[3], data[2]);
+        int payloadLen = bytesToWord(data[5], data[4]);
+        int cmd = word1 & 0x1F;
+        Log.d(TAG, "Recv: len: " + data.length + "(" + payloadLen + "), cmd: " + cmd);
         switch (cmd) {
             case BleApi.BLE_CMD_TEST_IDENTITY:
                 break;
             case BleApi.BLE_CMD_TEST_INCREMENT:
-                for (int i = 4; i < data.length; i++) {
+                if (payloadLen > 150) {
+                    int x = 0;
+                }
+                for (int i = 6; i < 6 + payloadLen; i++) {
                     data[i] += 1;
                 }
+                break;
             case BleApi.BLE_CMD_TEST_REVERSE:
-                for (int i = 4; i < data.length; i++) {
-                    data[i] = data[data.length - i + 4];
+                for (int i = 0; i < payloadLen/2; i++) {
+                    byte tmp = data[6 + payloadLen - i - 1];
+                    data[6 + payloadLen - i - 1] = data[6 + i];
+                    data[6 + i] = tmp;
                 }
+                break;
             default:
-                for (int i = 4; i < data.length; i++) {
+                for (int i = 6; i < 6 + payloadLen; i++) {
                     data[i] = 0;
                 }
                 break;
         }
-        Send(bleService, data);
+        Send(data);
     }
 }
 

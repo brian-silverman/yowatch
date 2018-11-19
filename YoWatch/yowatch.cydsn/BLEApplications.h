@@ -13,10 +13,15 @@
 #define DEFAULT_MTU_SIZE                (CYBLE_GATT_MTU)
 #define BLE_MAX_PAYLOAD                 (500)
 #if BLE_MAX_PAYLOAD > 500
+    //
     // BLE_MAX_PAYLOAD must not be greater than MAX_MTU_SIZE minus the
     // BLE_HEADER size.  However, in testing, I /may/ have found that sizes
     // exactly at the MTU size failed.  Therefore the current max size add a
     // little extra margin.
+    //
+    // TODO: change to dynamic assert(): 
+    //      assert(sizeof(struct BLE_HEADER) + BLE_MAX_PAYLOAD < MAX_MTU_SIZE)
+    //
     #error BLE_MAX_PAYLOAD too large
 #endif
 
@@ -26,6 +31,7 @@ struct BLE_HEADER {
     uint16 requiresResponse:1;
     uint16 reserved:5;
     uint16 index;
+    uint16 payloadLen;
 };
 
 void BleStart(

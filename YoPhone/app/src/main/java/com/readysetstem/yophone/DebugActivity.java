@@ -116,7 +116,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
                             break;
                         case BleApi.BLE_W2P_MIC_RECORDING:
                             if (mSpeedtestPackets % 32 == 0) {
-                                BleComm.Send(mBleService, mmm);
+                                mBleComm.Send(mmm);
                             }
                             mSpeedtestPackets++;
                             if (mMicRecording != null) {
@@ -151,7 +151,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickSpeedTest(View view) {
-        BleComm.Send(mBleService, BleApi.BLE_P2W_SPEEDTEST_START);
+        mBleComm.Send(BleApi.BLE_P2W_SPEEDTEST_START);
         mSpeedtestPackets = 0;
         mStartTime = System.currentTimeMillis();
         mIvSpeedtestPlay.setEnabled(false);
@@ -159,7 +159,7 @@ public class DebugActivity extends BleServiceConnectionActivity {
     }
 
     public void onClickMicRecord(View view) {
-        BleComm.Send(mBleService, BleApi.BLE_P2W_MIC_RECORD_START);
+        mBleComm.Send(BleApi.BLE_P2W_MIC_RECORD_START);
 
         mSpeedtestPackets = 0;
         mmm = BleApi.BLE_P2W_MIC_RECORD_CONTINUE;
